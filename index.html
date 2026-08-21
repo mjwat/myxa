@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Статическая модель игрового поля «Муха»">
+    <title>Муха — игровое поле</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="page-shell">
+      <section id="setup-screen" class="flow-screen setup-screen" aria-labelledby="setup-title">
+        <div class="flow-card">
+          <p class="eyebrow">Муха</p>
+          <h1 id="setup-title">Новая партия</h1>
+          <p class="flow-intro">Настройте от двух до четырёх игроков.</p>
+          <form id="setup-form">
+            <fieldset class="player-count">
+              <legend>Количество игроков</legend>
+              <div class="segmented-control">
+                <label><input type="radio" name="player-count" value="2" checked><span>2</span></label>
+                <label><input type="radio" name="player-count" value="3"><span>3</span></label>
+                <label><input type="radio" name="player-count" value="4"><span>4</span></label>
+              </div>
+            </fieldset>
+            <div id="player-settings" class="player-settings"></div>
+            <p id="setup-error" class="form-error" role="alert"></p>
+            <button id="start-game" class="primary-button" type="submit">Начать игру</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="first-roll-screen" class="flow-screen first-roll-screen" aria-labelledby="first-roll-title" hidden>
+        <div class="flow-card flow-card--compact">
+          <p class="eyebrow">Определение очередности</p>
+          <h1 id="first-roll-title">Кто ходит первым?</h1>
+          <p id="first-roll-status" class="flow-intro" aria-live="polite"></p>
+          <button id="first-roll-die" class="physical-dice first-roll-die" type="button" aria-label="Бросить один кубик">
+            <span class="physical-die physical-die--not-rolled">–</span>
+          </button>
+          <ol id="first-roll-results" class="roll-results"></ol>
+        </div>
+      </section>
+
+      <section id="game-screen" class="flow-screen" hidden>
+        <header class="game-header">
+          <div>
+            <p class="eyebrow">Муха</p>
+            <h1>Игра</h1>
+          </div>
+          <button id="new-game" class="secondary-button" type="button">Новая игра</button>
+        </header>
+        <div class="game-layout">
+        <section class="board-shell" aria-label="Игровое поле 13 на 13">
+          <div id="board-stage" class="board-stage">
+            <div id="board" class="board"></div>
+            <div id="victory-overlay" class="victory-overlay" hidden role="status" aria-live="assertive"></div>
+          </div>
+        </section>
+
+        <section id="dice-panel" class="dice-panel" aria-label="Текущий ход">
+          <div class="current-player">
+            <span id="current-player-color" class="current-player__color" aria-hidden="true"></span>
+            <div>
+              <span class="current-player__label">Сейчас ходит</span>
+              <strong id="current-player-name"></strong>
+            </div>
+          </div>
+          <button id="roll-dice" class="physical-dice" type="button" aria-label="Бросить кубики"></button>
+          <p id="turn-status" class="turn-status" aria-live="polite">Нажмите на кубики для броска</p>
+        </section>
+        </div>
+
+        <details class="rule-debug" hidden>
+        <summary>Инструменты разработки</summary>
+        <div class="rule-debug__controls">
+          <label for="debug-scenario">Dev-состояние</label>
+          <select id="debug-scenario"></select>
+          <label for="debug-player">Активный игрок</label>
+          <select id="debug-player"></select>
+          <label for="debug-die-one">Фиксированный бросок</label>
+          <span class="dice-inputs">
+            <select id="debug-die-one" aria-label="Первый фиксированный кубик">
+              <option>1</option><option>2</option><option>3</option>
+              <option>4</option><option>5</option><option>6</option>
+            </select>
+            <select id="debug-die-two" aria-label="Второй фиксированный кубик">
+              <option>1</option><option>2</option><option>3</option>
+              <option>4</option><option>5</option><option>6</option>
+            </select>
+          </span>
+          <button id="debug-start-turn" type="button">Применить бросок</button>
+          <output id="debug-output" for="debug-scenario debug-player debug-die-one debug-die-two"></output>
+        </div>
+        </details>
+      </section>
+    </main>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
