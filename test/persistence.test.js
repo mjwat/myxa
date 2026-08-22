@@ -90,7 +90,8 @@ test("a completed first-player roll remains available for game creation after re
 
   saveAppState(storage, saved);
   assert.equal(loadAppState(storage).firstPlayerRollState.status, "complete");
-  assert.deepEqual(loadAppState(storage).firstPlayerRollState.turnOrder, ["player-2", "player-1"]);
+  assert.equal(loadAppState(storage).firstPlayerRollState.winnerId, "player-2");
+  assert.equal("turnOrder" in loadAppState(storage).firstPlayerRollState, false);
 });
 
 test("invalid and incompatible saved data is ignored", () => {

@@ -206,6 +206,33 @@ test("six exposes move, enter-board, and release-from-sun as alternatives", () =
   ]));
 });
 
+test("a sun piece is not offered when another six action lets the player use both dice", () => {
+  const state = startTurn(createState({
+    "A-P1": { location: "sun", cellId: null },
+    "A-P3": { location: "finished", cellId: "A-H-3", laps: 1 },
+    "A-P4": { location: "finished", cellId: "A-H-4", laps: 1 },
+  }), [6, 2]);
+
+  const actions = getTurnValidActions(state);
+
+  assert.equal(actions.some(({ pieceId }) => pieceId === "A-P1"), false);
+  assert.deepEqual(actions.map(({ pieceId, type }) => ({ pieceId, type })), [{
+    pieceId: "A-P2",
+    type: "enter-board",
+  }]);
+});
+
+test("a sun piece remains available when the second die is playable after releasing it", () => {
+  const state = startTurn(createState({
+    "A-P1": { location: "sun", cellId: null },
+    "A-P2": { location: "board", cellId: "B-4" },
+    "A-P3": { location: "finished", cellId: "A-H-3", laps: 1 },
+    "A-P4": { location: "finished", cellId: "A-H-4", laps: 1 },
+  }), [6, 2]);
+
+  assert.equal(getTurnValidActions(state).some(({ pieceId }) => pieceId === "A-P1"), true);
+});
+
 test("enter-board consumes one six and the new piece can use the next value", () => {
   let state = startTurn(createState(), [6, 2]);
   state = applyTurnAction(state, actionFor(state, "A-P1", "enter-board")).gameState;

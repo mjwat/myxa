@@ -17,6 +17,20 @@ export function getCellDisplay(cellId, mode) {
       title: cellId,
       ariaLabel: `Клетка ${cellId}`,
       isPlayerHint: false,
+      isSideOriented: false,
+    };
+  }
+
+  const homeMatch = cellId.match(/^[A-D]-H-([1-4])$/);
+  if (homeMatch) {
+    const letter = "HOME"[4 - Number(homeMatch[1])];
+
+    return {
+      label: letter,
+      title: `Дом: буква ${letter}`,
+      ariaLabel: `Клетка дома: буква ${letter}`,
+      isPlayerHint: false,
+      isSideOriented: true,
     };
   }
 
@@ -32,6 +46,7 @@ export function getCellDisplay(cellId, mode) {
       ? "Игровая клетка"
       : `Игровая клетка: нужно выбросить ${requiredValue}`,
     isPlayerHint: requiredValue !== null,
+    isSideOriented: requiredValue !== null,
   };
 }
 

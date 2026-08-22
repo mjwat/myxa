@@ -17,14 +17,7 @@ export function createFirstPlayerRoll(playerIds) {
     results: {},
     history: [],
     winnerId: null,
-    turnOrder: null,
   };
-}
-
-export function createCyclicTurnOrder(playerIds, firstPlayerId) {
-  const firstIndex = playerIds.indexOf(firstPlayerId);
-  if (firstIndex === -1) throw new Error("First player must be in the player order.");
-  return [...playerIds.slice(firstIndex), ...playerIds.slice(0, firstIndex)];
 }
 
 export function recordFirstPlayerRoll(state, playerId, value) {
@@ -52,7 +45,6 @@ export function recordFirstPlayerRoll(state, playerId, value) {
       history,
       currentPlayerId: null,
       winnerId,
-      turnOrder: createCyclicTurnOrder(state.playerIds, winnerId),
     };
   }
 

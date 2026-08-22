@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Статическая модель игрового поля «Муха»">
-    <title>Муха — игровое поле</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Муха — лучшая настольная игра</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -12,17 +13,22 @@
       <section id="setup-screen" class="flow-screen setup-screen" aria-labelledby="setup-title">
         <div class="flow-card">
           <p class="eyebrow">Муха</p>
-          <h1 id="setup-title">Новая партия</h1>
-          <p class="flow-intro">Настройте от двух до четырёх игроков.</p>
+          <div class="setup-heading">
+            <h1 id="setup-title">Настройки партии</h1>
+            <button id="setup-show-rules" class="secondary-button setup-rules-button responsive-action-button" type="button" aria-label="Правила">
+              <span class="responsive-action-button__label">Правила</span>
+              <span class="responsive-action-button__icon" aria-hidden="true">ℹ️</span>
+            </button>
+          </div>
           <form id="setup-form">
-            <fieldset class="player-count">
-              <legend>Количество игроков</legend>
+            <div class="player-count" role="radiogroup" aria-labelledby="player-count-label">
+              <span id="player-count-label" class="player-count__label">Количество игроков</span>
               <div class="segmented-control">
                 <label><input type="radio" name="player-count" value="2" checked><span>2</span></label>
                 <label><input type="radio" name="player-count" value="3"><span>3</span></label>
                 <label><input type="radio" name="player-count" value="4"><span>4</span></label>
               </div>
-            </fieldset>
+            </div>
             <div id="player-settings" class="player-settings"></div>
             <p id="setup-error" class="form-error" role="alert"></p>
             <button id="start-game" class="primary-button" type="submit">Начать игру</button>
@@ -32,25 +38,50 @@
 
       <section id="first-roll-screen" class="flow-screen first-roll-screen" aria-labelledby="first-roll-title" hidden>
         <div class="flow-card flow-card--compact">
-          <p class="eyebrow">Определение очередности</p>
+          <nav class="first-roll-actions" aria-label="Действия перед началом партии">
+            <button id="first-roll-back" class="secondary-button responsive-action-button" type="button" aria-label="Назад">
+              <span class="responsive-action-button__label">Назад</span>
+              <span class="responsive-action-button__icon" aria-hidden="true">🔄</span>
+            </button>
+            <button id="first-roll-show-rules" class="secondary-button responsive-action-button" type="button" aria-label="Правила">
+              <span class="responsive-action-button__label">Правила</span>
+              <span class="responsive-action-button__icon" aria-hidden="true">ℹ️</span>
+            </button>
+          </nav>
           <h1 id="first-roll-title">Кто ходит первым?</h1>
           <p id="first-roll-status" class="flow-intro" aria-live="polite"></p>
           <button id="first-roll-die" class="physical-dice first-roll-die" type="button" aria-label="Бросить один кубик">
-            <span class="physical-die physical-die--not-rolled">–</span>
+            <span class="physical-die physical-die--not-rolled"><span class="physical-die__placeholder">–</span></span>
           </button>
           <ol id="first-roll-results" class="roll-results"></ol>
         </div>
       </section>
 
       <section id="game-screen" class="flow-screen" hidden>
-        <header class="game-header">
-          <div>
-            <p class="eyebrow">Муха</p>
-            <h1>Игра</h1>
-          </div>
-          <button id="new-game" class="secondary-button" type="button">Новая игра</button>
-        </header>
         <div class="game-layout">
+        <nav class="game-actions" aria-label="Действия игры">
+          <div class="new-game-action">
+            <button id="new-game" class="secondary-button responsive-action-button" type="button" aria-label="Новая игра" aria-expanded="false" aria-controls="new-game-popup">
+              <span class="responsive-action-button__label">Новая игра</span>
+              <span class="responsive-action-button__icon" aria-hidden="true">🔄</span>
+            </button>
+            <div id="new-game-popup" class="confirmation-popup" role="alertdialog" aria-labelledby="new-game-popup-title" hidden>
+              <p id="new-game-popup-title">Сбросить текущую партию?</p>
+              <div class="confirmation-popup__actions">
+                <button id="cancel-new-game" class="popup-button popup-button--secondary" type="button">Отмена</button>
+                <button id="confirm-new-game" class="popup-button popup-button--danger" type="button">Сбросить</button>
+              </div>
+            </div>
+          </div>
+          <button id="show-rules" class="secondary-button responsive-action-button" type="button" aria-label="Правила">
+            <span class="responsive-action-button__label">Правила</span>
+            <span class="responsive-action-button__icon" aria-hidden="true">ℹ️</span>
+          </button>
+        </nav>
+        <section class="dice-panel dice-panel--top" data-dice-position="top" aria-label="Верхние кубики">
+          <button class="physical-dice" type="button" aria-label="Бросить верхние кубики"></button>
+          <p class="turn-status" aria-live="polite"></p>
+        </section>
         <section class="board-shell" aria-label="Игровое поле 13 на 13">
           <div id="board-stage" class="board-stage">
             <div id="board" class="board"></div>
@@ -58,16 +89,9 @@
           </div>
         </section>
 
-        <section id="dice-panel" class="dice-panel" aria-label="Текущий ход">
-          <div class="current-player">
-            <span id="current-player-color" class="current-player__color" aria-hidden="true"></span>
-            <div>
-              <span class="current-player__label">Сейчас ходит</span>
-              <strong id="current-player-name"></strong>
-            </div>
-          </div>
-          <button id="roll-dice" class="physical-dice" type="button" aria-label="Бросить кубики"></button>
-          <p id="turn-status" class="turn-status" aria-live="polite">Нажмите на кубики для броска</p>
+        <section id="dice-panel" class="dice-panel dice-panel--bottom" data-dice-position="bottom" aria-label="Нижние кубики">
+          <button id="roll-dice" class="physical-dice" type="button" aria-label="Бросить нижние кубики"></button>
+          <p id="turn-status" class="turn-status" aria-live="polite">Зажмите кубики для броска</p>
         </section>
         </div>
 
@@ -94,6 +118,25 @@
         </div>
         </details>
       </section>
+
+      <dialog id="rules-dialog" class="rules-dialog" aria-labelledby="rules-slide-title">
+        <section class="rules-dialog__panel">
+          <header class="rules-dialog__header">
+            <div>
+              <h2 id="rules-slide-title">Правила</h2>
+            </div>
+            <button id="close-rules" class="rules-dialog__close" type="button" aria-label="Закрыть правила">×</button>
+          </header>
+          <div id="rules-content" class="rules-dialog__content" tabindex="0">
+            <p>Загрузка правил…</p>
+          </div>
+          <footer class="rules-dialog__footer">
+            <button id="rules-previous" class="rules-dialog__arrow" type="button" aria-label="Предыдущий раздел">←</button>
+            <span id="rules-progress" class="rules-dialog__progress" aria-live="polite"></span>
+            <button id="rules-next" class="rules-dialog__arrow" type="button" aria-label="Следующий раздел">→</button>
+          </footer>
+        </section>
+      </dialog>
     </main>
 
     <script type="module" src="js/app.js"></script>

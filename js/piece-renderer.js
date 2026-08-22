@@ -72,6 +72,40 @@ function renderOutsideSlots(layer, state, board) {
   });
 }
 
+function renderPlayerNames(layer, state, board) {
+  state.players.forEach((player) => {
+    const slot = board.pieceSlots.playerNames[player.side];
+    const isActive = player.id === state.currentPlayerId;
+    const label = document.createElement("div");
+    label.className = [
+      "player-name",
+      isActive ? "player-name--active" : "",
+    ].filter(Boolean).join(" ");
+    label.dataset.playerId = player.id;
+    label.style.setProperty("--player-name-rotation", `${slot.rotation}deg`);
+
+    const content = document.createElement("span");
+    content.className = "player-name__content";
+    const name = document.createElement("span");
+    name.className = "player-name__name";
+    name.textContent = player.name;
+    content.append(name);
+
+    if (isActive) {
+      const turnIndicator = document.createElement("span");
+      turnIndicator.className = "player-name__turn";
+      turnIndicator.textContent = "Ходит";
+      content.prepend(turnIndicator);
+      label.setAttribute("aria-current", "true");
+      label.setAttribute("aria-label", `Ходит ${player.name}`);
+    }
+    label.title = isActive ? `Ходит ${player.name}` : player.name;
+    label.append(content);
+    placeElement(label, slot, board.pieceLayer.size);
+    layer.append(label);
+  });
+}
+
 export function renderPieces(
   container,
   state,
@@ -88,6 +122,7 @@ export function renderPieces(
   layer.style.setProperty("--sun-piece-size", `${42 / board.pieceLayer.size}%`);
   layer.setAttribute("aria-label", "Фишки игроков");
 
+  renderPlayerNames(layer, state, board);
   renderOutsideSlots(layer, state, board);
   Object.values(state.pieces).forEach((piece) => {
     layer.append(renderPiece(piece, state, board, validPieceIds, selectedPieceId, displayMode));

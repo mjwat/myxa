@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getDiceViewModel } from "../js/dice-ui.js";
+import {
+  getDicePosition,
+  getDiceViewModel,
+  getHumanDicePositions,
+  shouldInvertTopDiceCaption,
+} from "../js/dice-ui.js";
 import { createDevelopmentGameState } from "../js/game-state.js";
 import { applyTurnAction, getTurnValidActions, startTurn } from "../js/turn-engine.js";
 
@@ -27,6 +32,54 @@ test("dice UI shows the current player's name, color, and waiting-roll state", (
   assert.equal(model.player.color, "#d84f4b");
   assert.equal(model.canRoll, true);
   assert.deepEqual(model.dice.map(({ status }) => status), ["not-rolled", "not-rolled"]);
+});
+
+test("a sole human uses the bottom dice while every bot uses the top dice", () => {
+  const players = [
+    { id: "human", type: "human", side: "C" },
+    { id: "bot-a", type: "bot", side: "A" },
+    { id: "bot-d", type: "bot", side: "D" },
+  ];
+
+  assert.equal(getDicePosition(players, "human"), "bottom");
+  assert.equal(getDicePosition(players, "bot-a"), "top");
+  assert.equal(getDicePosition(players, "bot-d"), "top");
+});
+
+test("multiplayer dice are shared by the upper and lower halves of the board", () => {
+  const players = [
+    { id: "a", type: "human", side: "A" },
+    { id: "b", type: "bot", side: "B" },
+    { id: "c", type: "human", side: "C" },
+    { id: "d", type: "bot", side: "D" },
+  ];
+
+  assert.equal(getDicePosition(players, "a"), "top");
+  assert.equal(getDicePosition(players, "b"), "top");
+  assert.equal(getDicePosition(players, "c"), "bottom");
+  assert.equal(getDicePosition(players, "d"), "bottom");
+});
+
+test("a sole human keeps the caption beside the bottom dice", () => {
+  const players = [
+    { id: "bot", type: "bot", side: "A" },
+    { id: "human", type: "human", side: "C" },
+  ];
+
+  assert.deepEqual(getHumanDicePositions(players), ["bottom"]);
+});
+
+test("multiplayer captions remain only beside dice sets used by humans", () => {
+  const players = [
+    { id: "human-a", type: "human", side: "A" },
+    { id: "bot-b", type: "bot", side: "B" },
+    { id: "human-c", type: "human", side: "C" },
+    { id: "bot-d", type: "bot", side: "D" },
+  ];
+
+  assert.deepEqual(getHumanDicePositions(players), ["top", "bottom"]);
+  assert.equal(shouldInvertTopDiceCaption(players), true);
+  assert.equal(shouldInvertTopDiceCaption(players.slice(1)), false);
 });
 
 test("dice UI reflects a burned value and the next active value from the turn engine", () => {

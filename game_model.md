@@ -2,8 +2,8 @@
 
 Technical representation of the board and game mechanics.
 
-Player-facing rules are defined in `GAME_RULES.md`.\
-Product scope and UX are defined in `README.md`.
+Player-facing rules are defined in `game_rules.md`.\
+Product scope and UX are defined in `readme.md`.
 
 ## Board
 
@@ -112,13 +112,13 @@ position.
 
 ## Piece state
 
-Each piece has a stable ID, for example:
+Each piece has a stable ID derived from its player ID, for example:
 
 ``` text
-A-P1
-A-P2
-A-P3
-A-P4
+player-1-P1
+player-1-P2
+player-1-P3
+player-1-P4
 ```
 
 A piece should explicitly track its current state rather than infer it
@@ -139,8 +139,8 @@ Example:
 
 ``` js
 {
-  id: "A-P2",
-  playerId: "A",
+  id: "player-1-P2",
+  playerId: "player-1",
   location: "board",
   cellId: "C-7",
   laps: 0
@@ -157,12 +157,12 @@ Example:
 
 ``` js
 {
-  id: "A",
+  id: "player-1",
   name: "Player 1",
   type: "human",
-  color: "red",
+  color: "#d84f4b",
   side: "A",
-  pieceIds: ["A-P1", "A-P2", "A-P3", "A-P4"]
+  pieceIds: ["player-1-P1", "player-1-P2", "player-1-P3", "player-1-P4"]
 }
 ```
 
@@ -186,12 +186,19 @@ Example shape:
   status: "playing",
   players: [],
   pieces: {},
-  turnOrder: ["A", "C", "B", "D"],
-  currentPlayerId: "A",
+  turnOrder: ["player-3", "player-4", "player-1", "player-2"],
+  currentPlayerId: "player-3",
   turn: {
     dice: [6, 3],
+    sequence: [6, 3],
+    valueStates: [
+      { value: 6, status: "active" },
+      { value: 3, status: "pending" }
+    ],
+    activeIndex: 0,
     remainingValues: [6, 3],
-    activeValue: 6
+    activeValue: 6,
+    finished: false
   },
   winnerId: null
 }
@@ -199,6 +206,10 @@ Example shape:
 
 Do not store DOM references, animation state or other presentation data
 in game state.
+
+The pre-game roll determines only the first player. `turnOrder` starts with
+that player and then follows occupied sides clockwise (`A → B → C → D`,
+skipping empty sides). The other die results never affect `turnOrder`.
 
 ## Actions
 
@@ -212,9 +223,11 @@ Example:
 ``` js
 {
   type: "move",
-  pieceId: "A-P2",
+  pieceId: "player-1-P2",
   dieValue: 5,
-  destination: "B-4"
+  destination: "B-4",
+  path: ["B-0", "B-1", "B-2", "B-3", "B-4"],
+  effects: []
 }
 ```
 
@@ -243,6 +256,11 @@ reordered in order to make the smaller value playable.
 
 If the active value has no valid actions, it is discarded and resolution
 continues with the next value.
+
+When several actions are valid for the active value, expose only actions
+that preserve the maximum achievable number of actions across all remaining
+values. This lookahead is part of the turn engine, so the UI and Bot receive
+the same filtered action set.
 
 A double such as `3 + 3` produces `[3, 3, 3, 3]`.
 
@@ -298,6 +316,8 @@ If it ends on `SIDE-10`, resolve `SIDE-10 → SIDE-2`.
 
 If the Rainbow endpoint where normal movement lands contains a friendly
 piece, the action is invalid and teleport does not begin.
+
+An enemy piece on that endpoint is captured before the teleport.
 
 The die action ends after the teleport.
 
@@ -361,13 +381,14 @@ The match status becomes `finished` and `winnerId` is set.
 
 ## Rule engine API
 
-Exact function names are implementation details, but the rule layer
-should conceptually support:
+The rules and turn layers expose these main operations:
 
 ``` js
-getValidActions(gameState)
-getValidActionsForPiece(gameState, pieceId)
+getValidActions(gameState, playerId, dieValue)
+getTurnValidActions(gameState)
+getTurnActionSequencesForPiece(gameState, pieceId)
 applyAction(gameState, action)
+applyTurnAction(gameState, action)
 ```
 
 The rule engine must not manipulate DOM, play sounds or perform
@@ -375,20 +396,25 @@ animations.
 
 ## Events
 
-It may be useful for action resolution to return presentation-neutral
-events:
+Action resolution returns presentation-neutral events:
 
 ``` js
 [
-  { type: "piece-moved", pieceId: "A-P1", path: [...] },
-  { type: "teleported", pieceId: "A-P1", from: "...", to: "..." },
-  { type: "captured", pieceId: "B-P2" }
+  { type: "piece-moved", pieceId: "player-1-P1", path: [...] },
+  { type: "teleported", pieceId: "player-1-P1", from: "...", to: "..." },
+  { type: "captured", pieceId: "player-2-P2" }
 ]
 ```
 
 UI may use these events for animation and sound.
 
 Events describe what happened. They must not determine game rules.
+
+## Persistence envelope
+
+The saved value uses the `mukha.saved-app-state` localStorage key and has
+its own `version`. It stores the current `phase`, the setup draft and the
+data for that phase: first-player roll state or canonical game state.
 
 ## Invariants
 

@@ -109,6 +109,13 @@ const outsidePieceSlots = Object.freeze({
   D: freezeItems([9.5, 8.5, 7.5, 6.5].map((row) => ({ row, column: 1 }))),
 });
 
+const playerNameSlots = Object.freeze({
+  A: Object.freeze({ row: 1, column: 11.25, rotation: 180 }),
+  B: Object.freeze({ row: 11.25, column: PIECE_LAYER_SIZE, rotation: -90 }),
+  C: Object.freeze({ row: PIECE_LAYER_SIZE, column: 5.25, rotation: 0 }),
+  D: Object.freeze({ row: 4.75, column: 1, rotation: 90 }),
+});
+
 const sunPieceSlots = freezeItems(
   Array.from({ length: 4 }, (_, rowIndex) =>
     Array.from({ length: 4 }, (_, columnIndex) => ({
@@ -134,6 +141,7 @@ export const boardData = Object.freeze({
   }),
   pieceSlots: Object.freeze({
     outside: outsidePieceSlots,
+    playerNames: playerNameSlots,
     sun: sunPieceSlots,
   }),
 });
@@ -198,6 +206,9 @@ export function validateBoardData(board = boardData) {
 
     if (board.pieceSlots.outside[side]?.length !== 4) {
       errors.push(`${side} must have four outside piece slots.`);
+    }
+    if (!board.pieceSlots.playerNames[side]) {
+      errors.push(`${side} must have a player name slot.`);
     }
   }
 

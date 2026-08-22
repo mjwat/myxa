@@ -4,10 +4,10 @@
 
 Before making changes, read the relevant project documentation:
 
--   `README.md` --- product scope, UX and high-level architecture.
--   `GAME_RULES.md` --- player-facing game rules and source of truth for
+-   `readme.md` --- product scope, UX and high-level architecture.
+-   `game_rules.md` --- player-facing game rules and source of truth for
     mechanics.
--   `GAME_MODEL.md` --- technical board model, game entities and
+-   `game_model.md` --- technical board model, game entities and
     rule-engine conventions.
 
 Do not duplicate these specifications in code or in this file.
@@ -40,9 +40,9 @@ for rendering; routes and connections are game data.
 
 ## Rules
 
-`GAME_RULES.md` is the source of truth for game behavior.
+`game_rules.md` is the source of truth for game behavior.
 
-`GAME_MODEL.md` describes how those rules are represented technically.
+`game_model.md` describes how those rules are represented technically.
 
 If a rule is missing or ambiguous, do not invent it. Ask for
 clarification.
@@ -65,12 +65,18 @@ must not affect rule outcomes.
 
 ## Persistence
 
-Persist unfinished games in `localStorage`.
+Persist the current app flow (setup, first-player roll or game) in
+`localStorage` so it can be restored after reload.
 
 Persist only serializable game data, not DOM or transient animation
 state.
 
 Keep saved-state format versionable.
+
+## Testing
+
+Run the test suite with `npm test` after changing rules, game state,
+persistence or shared UI behavior.
 
 ## Scope
 

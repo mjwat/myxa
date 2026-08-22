@@ -19,6 +19,36 @@ export function getPlayerSides(playerCount) {
   return [...sides];
 }
 
+export function assignPlayerSides(players) {
+  const sides = getPlayerSides(players.length);
+  const humanIndexes = players
+    .map(({ type }, index) => (type === "human" ? index : -1))
+    .filter((index) => index !== -1);
+
+  if (humanIndexes.length === 1) {
+    const humanIndex = humanIndexes[0];
+    const bottomSideIndex = sides.indexOf("C");
+    [sides[humanIndex], sides[bottomSideIndex]] = [sides[bottomSideIndex], sides[humanIndex]];
+  }
+
+  return players.map((player, index) => ({ ...player, side: sides[index] }));
+}
+
+export function createClockwiseTurnOrder(players, firstPlayerId) {
+  const clockwiseSides = PLAYER_COLORS.map(({ side }) => side);
+  const clockwisePlayers = [...players].sort(
+    (left, right) => clockwiseSides.indexOf(left.side) - clockwiseSides.indexOf(right.side),
+  );
+  const firstIndex = clockwisePlayers.findIndex(({ id }) => id === firstPlayerId);
+
+  if (firstIndex === -1) throw new Error("First player must be present in the game.");
+
+  return [
+    ...clockwisePlayers.slice(firstIndex),
+    ...clockwisePlayers.slice(0, firstIndex),
+  ].map(({ id }) => id);
+}
+
 const PLAYER_CONFIGURATIONS = Object.freeze([
   Object.freeze({ id: "A", name: "Анна", type: "human", color: "#d84f4b", side: "A" }),
   Object.freeze({ id: "B", name: "Борис", type: "human", color: "#d9a514", side: "B" }),

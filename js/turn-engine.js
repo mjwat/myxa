@@ -128,7 +128,69 @@ export function startTurn(gameState, dice = rollDice()) {
 export function getTurnValidActions(gameState) {
   const { turn } = gameState;
   if (gameState.status !== "playing" || !turn || turn.finished || turn.activeValue === null) return [];
-  return getValidActions(gameState, gameState.currentPlayerId, turn.activeValue);
+
+  const actions = getValidActions(gameState, gameState.currentPlayerId, turn.activeValue);
+  const remainingValues = turn.valueStates
+    .slice(turn.activeIndex + 1)
+    .filter(({ status }) => status === "pending")
+    .map(({ value }) => value);
+  if (actions.length < 2 || remainingValues.length === 0) return actions;
+
+  const scoredActions = actions.map((action) => ({
+    action,
+    futureActionCount: getMaximumPlayableActionCount(
+      applyAction(gameState, action).gameState,
+      gameState.currentPlayerId,
+      remainingValues,
+    ),
+  }));
+  const maximumFutureActionCount = Math.max(...scoredActions.map(({ futureActionCount }) => futureActionCount));
+
+  return scoredActions
+    .filter(({ futureActionCount }) => futureActionCount === maximumFutureActionCount)
+    .map(({ action }) => action);
+}
+
+function getMaximumPlayableActionCount(gameState, playerId, remainingValues) {
+  if (gameState.status !== "playing" || remainingValues.length === 0) return 0;
+
+  const [value, ...laterValues] = remainingValues;
+  const actions = getValidActions(gameState, playerId, value);
+  if (actions.length === 0) return getMaximumPlayableActionCount(gameState, playerId, laterValues);
+
+  return 1 + Math.max(...actions.map((action) => getMaximumPlayableActionCount(
+    applyAction(gameState, action).gameState,
+    playerId,
+    laterValues,
+  )));
+}
+
+export function burnActiveValue(gameState) {
+  const { turn } = gameState;
+  if (!turn || turn.finished || turn.activeIndex === null || turn.activeValue === null) {
+    throw new Error("Cannot burn a value when no die value is active.");
+  }
+  if (getTurnValidActions(gameState).length > 0) {
+    throw new Error("Cannot burn an active value while valid actions exist.");
+  }
+
+  const valueStates = turn.valueStates.map((entry, index) => (
+    index === turn.activeIndex ? { ...entry, status: "burned" } : { ...entry }
+  ));
+  const stateWithBurnedValue = {
+    ...gameState,
+    turn: {
+      ...turn,
+      valueStates,
+      activeIndex: null,
+      activeValue: null,
+      remainingValues: valueStates
+        .filter(({ status }) => status === "pending")
+        .map(({ value }) => value),
+    },
+  };
+
+  return advanceToPlayableValue(stateWithBurnedValue, stateWithBurnedValue.turn);
 }
 
 export function getTurnActionSequencesForPiece(gameState, pieceId) {
