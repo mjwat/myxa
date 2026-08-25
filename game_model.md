@@ -160,6 +160,7 @@ Example:
   id: "player-1",
   name: "Player 1",
   type: "human",
+  autoPlay: false,
   color: "#d84f4b",
   side: "A",
   pieceIds: ["player-1-P1", "player-1-P2", "player-1-P3", "player-1-P4"]
@@ -171,6 +172,10 @@ Example:
 ``` text
 human | bot
 ```
+
+`autoPlay` is a persisted Human-player preference. It lets the UI roll and
+apply an action only when the turn engine exposes exactly one valid action;
+it does not change or duplicate game rules.
 
 Color is visual only. Side determines the player's start and HOME.
 

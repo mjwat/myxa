@@ -37,8 +37,16 @@ import {
 import { loadAppState, saveAppState } from "./persistence.js";
 import { applyBoardPlayerColors } from "./board-theme.js";
 import { playBotTurn } from "./bot-player.js";
+import { getAutoHumanStep } from "./auto-player.js";
 import { parseRulesMarkdown, renderRulesSlide } from "./rules-dialog.js";
 import { swapPlayerColor } from "./setup-players.js";
+import {
+  getActionSelectionCells,
+  getSequenceBadge,
+  getSequenceBadgeCell,
+  getSequenceRainbowTransition,
+  getSequenceSelectionCells,
+} from "./action-targets.js";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const SWAMP_PUSH_ANIMATION_DURATION = 300;
@@ -47,10 +55,14 @@ const MIDDLE_CELL_STEP_ANIMATION_DURATION = 65;
 const DIE_ACTION_PAUSE = 90;
 const DICE_ROLL_FRAME_DURATION = 70;
 const DICE_ROLL_FRAME_COUNT = 8;
+const DICE_POST_RELEASE_SHAKE_COUNT = 2;
 const BOT_FIRST_ROLL_DELAY = 650;
 const BOT_TURN_START_DELAY = 550;
 const BOT_ACTION_CHOICE_DELAY = 450;
 const BOT_NEXT_ACTION_DELAY = 350;
+const AUTO_TURN_START_DELAY = 350;
+const AUTO_ACTION_CHOICE_DELAY = 260;
+const AUTO_NEXT_ACTION_DELAY = 180;
 const displayMode = getDisplayMode(window.location.search);
 
 function createSvgElement(tagName, attributes = {}) {
@@ -98,18 +110,43 @@ function pointOnQuadraticCurve({ from, bend, to }, progress) {
 function renderRainbow(svg, board, link) {
   const { from, bend, to } = getRainbowCurve(board, link.from, link.to);
   const colors = ["#e95f68", "#f2b83f", "#63ad78", "#6288c8"];
+  const pathData = `M ${from.x} ${from.y} Q ${bend.x} ${bend.y} ${to.x} ${to.y}`;
+  const group = createSvgElement("g", {
+    class: "rainbow-link",
+    "data-rainbow-from": link.from,
+    "data-rainbow-to": link.to,
+  });
+
+  group.append(createSvgElement("path", {
+    class: "rainbow-link__hit-area",
+    d: pathData,
+    fill: "none",
+    stroke: "transparent",
+    "stroke-width": 1.25,
+    "stroke-linecap": "round",
+  }));
+  group.append(createSvgElement("path", {
+    class: "rainbow-link__highlight",
+    d: pathData,
+    fill: "none",
+    stroke: "#ffd84d",
+    "stroke-width": 0.82,
+    "stroke-linecap": "round",
+  }));
 
   colors.forEach((color, index) => {
     const path = createSvgElement("path", {
-      d: `M ${from.x} ${from.y} Q ${bend.x} ${bend.y} ${to.x} ${to.y}`,
+      class: "rainbow-link__stripe",
+      d: pathData,
       fill: "none",
       stroke: color,
       "stroke-width": 0.5 - index * 0.09,
       "stroke-linecap": "round",
       opacity: 0.95,
     });
-    svg.append(path);
+    group.append(path);
   });
+  svg.append(group);
 }
 
 function renderSwampRoute(svg, board, swamp) {
@@ -190,6 +227,10 @@ document.documentElement.dataset.displayMode = displayMode;
 const boardElement = document.querySelector("#board");
 const boardStageElement = document.querySelector("#board-stage");
 renderBoard(boardElement, boardData);
+const badgeLayerElement = document.createElement("div");
+badgeLayerElement.className = "board__badges";
+badgeLayerElement.setAttribute("aria-hidden", "true");
+boardStageElement.append(badgeLayerElement);
 
 const setupScreenElement = document.querySelector("#setup-screen");
 const firstRollScreenElement = document.querySelector("#first-roll-screen");
@@ -234,6 +275,7 @@ debugPanelElement.hidden = displayMode !== DISPLAY_MODES.DEVELOPMENT;
 let currentGameState;
 let validActions = [];
 let selectedPieceId = null;
+let selectedPieceActionCount = 0;
 let isAnimating = false;
 let isRolling = false;
 let rollingDiceValues = null;
@@ -254,13 +296,28 @@ let isFirstRollHolding = false;
 let firstRollHoldTimer = null;
 let flowGeneration = 0;
 let isBotRunning = false;
+let isAutoHumanRunning = false;
 let selectedBotAction = null;
 let rulesSlides = [];
 let rulesSlideIndex = 0;
+let dismissedVictoryOverlayWinnerId = null;
 let rulesLoadPromise = null;
 let rulesReturnFocusElement = null;
 
 const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function animatePostReleaseShakes(renderRandomFrame, renderFinalFrame, isCurrent) {
+  for (let frame = 0; frame < DICE_POST_RELEASE_SHAKE_COUNT; frame += 1) {
+    await wait(DICE_ROLL_FRAME_DURATION);
+    if (!isCurrent()) return false;
+    renderRandomFrame();
+  }
+
+  await wait(DICE_ROLL_FRAME_DURATION);
+  if (!isCurrent()) return false;
+  renderFinalFrame();
+  return true;
+}
 
 const DIE_PIP_POSITIONS = {
   1: [5],
@@ -283,12 +340,59 @@ function renderDieFace(die, value) {
     return;
   }
 
+  appendDiePips(die, value, "physical-die__pip");
+}
+
+function appendDiePips(die, value, className) {
   DIE_PIP_POSITIONS[value].forEach((position) => {
     const pip = document.createElement("span");
-    pip.className = "physical-die__pip";
+    pip.className = className;
     pip.style.gridArea = `${Math.ceil(position / 3)} / ${((position - 1) % 3) + 1}`;
     die.append(pip);
   });
+}
+
+function renderDestinationBadge(cell, badgeModel) {
+  if (!badgeModel) return;
+
+  const boardCell = getCell(boardData, cell.dataset.cellId);
+  const anchor = document.createElement("span");
+  anchor.className = "cell-action-badge-anchor";
+  anchor.style.gridRow = String(boardCell.row + boardData.pieceLayer.boardOffset);
+  anchor.style.gridColumn = String(boardCell.column + boardData.pieceLayer.boardOffset);
+
+  const badge = document.createElement("span");
+  badge.className = `cell-action-badge cell-action-badge--${badgeModel.type}`;
+  badge.setAttribute("aria-hidden", "true");
+
+  if (badgeModel.type === "multiplier") {
+    badge.textContent = badgeModel.label;
+  } else {
+    badgeModel.values.forEach((value) => {
+      const die = document.createElement("span");
+      die.className = "cell-action-badge__die";
+      appendDiePips(die, value, "cell-action-badge__pip");
+      badge.append(die);
+    });
+  }
+
+  anchor.append(badge);
+  badgeLayerElement.append(anchor);
+}
+
+function clearPieceSelection() {
+  selectedPieceId = null;
+  selectedPieceActionCount = 0;
+}
+
+function selectPiece(pieceId) {
+  if (selectedPieceId !== pieceId) selectedPieceActionCount = 0;
+  selectedPieceId = pieceId;
+}
+
+function isDoubleTurn(gameState) {
+  const dice = gameState.turn?.dice;
+  return dice?.length === 2 && dice[0] === dice[1];
 }
 
 function createSavedState() {
@@ -312,6 +416,17 @@ function createSavedState() {
 
 function persistCurrentState() {
   saveAppState(window.localStorage, createSavedState());
+}
+
+function preserveAutoPlaySettings(nextState, latestState = currentGameState) {
+  const settings = new Map(latestState.players.map(({ id, autoPlay }) => [id, autoPlay === true]));
+  return {
+    ...nextState,
+    players: nextState.players.map((player) => ({
+      ...player,
+      autoPlay: settings.get(player.id) ?? false,
+    })),
+  };
 }
 
 function showPhase(phase) {
@@ -453,7 +568,7 @@ function renderFirstPlayerRoll() {
     || !currentPlayer
     || currentPlayer.type === "bot";
   die.className = `physical-die ${isFirstRollRolling ? "physical-die--rolling" : "physical-die--not-rolled"}`;
-  if (!isFirstRollHolding) renderDieFace(die, currentValue);
+  if (!isFirstRollRolling) renderDieFace(die, currentValue);
 
   if (state.status === "complete") {
     const winner = playerForFirstRoll(state.winnerId);
@@ -465,7 +580,9 @@ function renderFirstPlayerRoll() {
       ? `${currentPlayer.name} бросает автоматически…`
       : isFirstRollHolding
         ? `${currentPlayer.name}, отпустите кубик для броска`
-        : `${currentPlayer.name}, зажмите кубик для броска`;
+        : isFirstRollRolling
+          ? `${currentPlayer.name}, кубик бросается…`
+          : `${currentPlayer.name}, зажмите кубик для броска`;
   }
 
   const items = pendingPlayers.map((player) => {
@@ -530,12 +647,12 @@ async function completeFirstPlayerRoll(playerId, finalValue, generation = flowGe
       players: pendingPlayers,
       turnOrder: createClockwiseTurnOrder(pendingPlayers, firstPlayerRollState.winnerId),
     });
-    selectedPieceId = null;
+    clearPieceSelection();
     validActions = [];
     showPhase("game");
     persistCurrentState();
     renderInteraction();
-    scheduleBotTurns();
+    scheduleAutomatedTurns();
   }
 }
 
@@ -559,8 +676,15 @@ async function finishFirstPlayerRollHold() {
   window.clearInterval(firstRollHoldTimer);
   firstRollHoldTimer = null;
   isFirstRollHolding = false;
+  renderFirstPlayerRoll();
   const finalValue = rollDie();
-  renderDieFace(firstRollDieElement.querySelector(".physical-die"), finalValue);
+  const die = firstRollDieElement.querySelector(".physical-die");
+  const completed = await animatePostReleaseShakes(
+    () => renderDieFace(die, rollDie()),
+    () => renderDieFace(die, finalValue),
+    () => generation === flowGeneration && appPhase === "first-player-roll",
+  );
+  if (!completed) return;
   await completeFirstPlayerRoll(playerId, finalValue, generation);
 }
 
@@ -858,14 +982,19 @@ function clearDestinationHighlights() {
     delete cell.dataset.actionCount;
     cell.title = cell.dataset.baseTitle;
   });
+  badgeLayerElement.replaceChildren();
+  boardElement.querySelectorAll(".rainbow-link--valid-destination").forEach((rainbow) => {
+    rainbow.classList.remove("rainbow-link--valid-destination");
+    rainbow.removeAttribute("role");
+    rainbow.removeAttribute("aria-label");
+    rainbow.removeAttribute("tabindex");
+    delete rainbow.dataset.actionCount;
+  });
+  boardElement.querySelector(".board__connections")?.setAttribute("aria-hidden", "true");
 }
 
 function getActionSelectionCell(action) {
-  return action.path.at(-1) ?? action.destination;
-}
-
-function getSequenceSelectionCell(sequence) {
-  return getActionSelectionCell(sequence.at(-1));
+  return getActionSelectionCells(action)[0];
 }
 
 function renderDiceState(message) {
@@ -927,7 +1056,8 @@ function renderDiceState(message) {
   });
 
   const winner = currentGameState.players.find(({ id }) => id === currentGameState.winnerId);
-  victoryOverlayElement.hidden = !winner;
+  if (!winner) dismissedVictoryOverlayWinnerId = null;
+  victoryOverlayElement.hidden = !winner || dismissedVictoryOverlayWinnerId === winner.id;
   victoryOverlayElement.replaceChildren();
   if (winner) {
     const trophy = document.createElement("span");
@@ -980,17 +1110,40 @@ function renderInteraction(message) {
 
   clearDestinationHighlights();
   selectedSequences.forEach((sequence) => {
-    const selectionCell = getSequenceSelectionCell(sequence);
-    const cell = boardElement.querySelector(`[data-cell-id="${selectionCell}"]`);
-    if (!cell) return;
-    cell.classList.add("cell--valid-destination");
-    cell.dataset.actionCount = String(sequence.length);
-    cell.title = sequence.length > 1
-      ? `${selectionCell} — разыграть ${sequence.length} значения подряд`
-      : `${selectionCell} — разыграть ${sequence[0].dieValue}`;
+    const badgeCell = getSequenceBadgeCell(sequence);
+    const badgeModel = getSequenceBadge(
+      sequence,
+      currentGameState.turn?.dice,
+      selectedPieceActionCount,
+    );
+    getSequenceSelectionCells(sequence).forEach((selectionCell) => {
+      const cell = boardElement.querySelector(`[data-cell-id="${selectionCell}"]`);
+      if (!cell) return;
+      cell.classList.add("cell--valid-destination");
+      cell.dataset.actionCount = String(sequence.length);
+      if (selectionCell === badgeCell) renderDestinationBadge(cell, badgeModel);
+      cell.title = sequence.length > 1
+        ? `${selectionCell} — разыграть ${sequence.map(({ dieValue }) => dieValue).join(" → ")}`
+        : `${selectionCell} — разыграть ${sequence[0].dieValue}`;
+      if (isHumanTurn) {
+        cell.setAttribute("role", "button");
+        cell.tabIndex = 0;
+      }
+    });
+
+    const teleport = getSequenceRainbowTransition(sequence);
+    if (!teleport) return;
+    const rainbow = boardElement.querySelector(
+      `[data-rainbow-from="${teleport.from}"], [data-rainbow-to="${teleport.from}"]`,
+    );
+    if (!rainbow) return;
+    rainbow.classList.add("rainbow-link--valid-destination");
+    rainbow.dataset.actionCount = String(sequence.length);
     if (isHumanTurn) {
-      cell.setAttribute("role", "button");
-      cell.tabIndex = 0;
+      rainbow.closest(".board__connections").setAttribute("aria-hidden", "false");
+      rainbow.setAttribute("role", "button");
+      rainbow.setAttribute("aria-label", `Радуга ${teleport.from} — ${teleport.to}`);
+      rainbow.tabIndex = 0;
     }
   });
 
@@ -1012,7 +1165,7 @@ function renderInteraction(message) {
 function updateValidActions() {
   validActions = getTurnValidActions(currentGameState);
 
-  if (!validActions.some(({ pieceId }) => pieceId === selectedPieceId)) selectedPieceId = null;
+  if (!validActions.some(({ pieceId }) => pieceId === selectedPieceId)) clearPieceSelection();
   renderInteraction();
 }
 
@@ -1022,7 +1175,7 @@ function loadScenario() {
   renderPlayerOptions(scenario);
   debugDieOneElement.value = String(scenario.dieValue);
   debugDieTwoElement.value = "1";
-  selectedPieceId = null;
+  clearPieceSelection();
   updateValidActions();
 }
 
@@ -1033,26 +1186,34 @@ async function advanceFinishedTurn(message) {
   await wait(500);
   currentGameState = advanceToNextPlayer(currentGameState);
   validActions = [];
-  selectedPieceId = null;
+  clearPieceSelection();
   selectedBotAction = null;
   persistCurrentState();
   renderInteraction();
-  scheduleBotTurns();
+  scheduleAutomatedTurns();
   return true;
 }
 
 async function beginTurn(dice) {
   currentGameState = startTurn(currentGameState, dice);
   persistCurrentState();
-  selectedPieceId = null;
+  clearPieceSelection();
   validActions = getTurnValidActions(currentGameState);
   if (!await advanceFinishedTurn("Нет доступных действий. Ход завершён.")) updateValidActions();
+  scheduleAutoHumanTurn();
 }
 
 async function performActionSequence(actions) {
+  const actingPieceId = actions[0]?.pieceId ?? null;
+  const keepDoubleSelection = isDoubleTurn(currentGameState)
+    && selectedPieceId === actingPieceId
+    && actions.every(({ pieceId }) => pieceId === actingPieceId);
+  const completedWithSelectedPiece = keepDoubleSelection
+    ? selectedPieceActionCount + actions.length
+    : 0;
+
   isAnimating = true;
   validActions = [];
-  selectedPieceId = null;
   clearDestinationHighlights();
 
   let nextGameState = currentGameState;
@@ -1062,7 +1223,7 @@ async function performActionSequence(actions) {
     for (const [index, action] of actions.entries()) {
       const result = applyTurnAction(nextGameState, action);
       await animateActionEvents(result.events, result.gameState);
-      nextGameState = result.gameState;
+      nextGameState = preserveAutoPlaySettings(result.gameState);
       currentGameState = nextGameState;
       persistCurrentState();
       renderDiceState();
@@ -1073,6 +1234,12 @@ async function performActionSequence(actions) {
   } finally {
     currentGameState = nextGameState;
     validActions = getTurnValidActions(currentGameState);
+    if (keepDoubleSelection && validActions.some(({ pieceId }) => pieceId === actingPieceId)) {
+      selectedPieceId = actingPieceId;
+      selectedPieceActionCount = completedWithSelectedPiece;
+    } else {
+      clearPieceSelection();
+    }
     const winner = currentGameState.players.find(({ id }) => id === currentGameState.winnerId);
     if (winner) {
       renderInteraction(`${lastAction.pieceId} перемещена на ${lastAction.destination}. Победитель: ${winner.name}.`);
@@ -1085,6 +1252,7 @@ async function performActionSequence(actions) {
     }
     isAnimating = false;
     renderDiceState();
+    scheduleAutoHumanTurn();
   }
 }
 
@@ -1094,7 +1262,7 @@ async function performAction(action) {
 
 async function activateInteractiveElement(target) {
   const currentPlayer = currentGameState.players.find(({ id }) => id === currentGameState.currentPlayerId);
-  if (isAnimating || isBotRunning || currentPlayer?.type !== "human") return;
+  if (isAnimating || isBotRunning || isAutoHumanRunning || currentPlayer?.type !== "human") return;
 
   const pieceElement = target.closest(".piece--valid-action");
   if (pieceElement && boardStageElement.contains(pieceElement)) {
@@ -1104,27 +1272,66 @@ async function activateInteractiveElement(target) {
     if (directAction) {
       await performAction(directAction);
     } else if (pieceActions.length > 0) {
-      selectedPieceId = selectedPieceId === pieceId ? null : pieceId;
+      if (selectedPieceId === pieceId) clearPieceSelection();
+      else selectPiece(pieceId);
       renderInteraction();
     }
     return;
   }
 
-  const cellElement = target.closest(".cell--valid-destination");
-  if (!cellElement || !selectedPieceId) return;
+  const destinationElement = target.closest(
+    ".cell--valid-destination, .rainbow-link--valid-destination",
+  );
+  if (!destinationElement || !selectedPieceId) return;
 
-  const sequence = getTurnActionSequencesForPiece(currentGameState, selectedPieceId).find((candidate) => (
-    candidate.length === Number(cellElement.dataset.actionCount)
-      && getSequenceSelectionCell(candidate) === cellElement.dataset.cellId
-  ));
+  const sequence = getTurnActionSequencesForPiece(currentGameState, selectedPieceId).find((candidate) => {
+    if (candidate.length !== Number(destinationElement.dataset.actionCount)) return false;
+    if (!destinationElement.matches(".rainbow-link--valid-destination")) {
+      return getSequenceSelectionCells(candidate).includes(destinationElement.dataset.cellId);
+    }
+
+    const teleport = getSequenceRainbowTransition(candidate);
+    const rainbowEndpoints = [
+      destinationElement.dataset.rainbowFrom,
+      destinationElement.dataset.rainbowTo,
+    ];
+    return teleport
+      && rainbowEndpoints.includes(teleport.from)
+      && rainbowEndpoints.includes(teleport.to);
+  });
   if (!sequence) return;
   await performActionSequence(sequence);
 }
 
-boardStageElement.addEventListener("click", ({ target }) => activateInteractiveElement(target));
+boardStageElement.addEventListener("click", ({ target }) => {
+  if (!victoryOverlayElement.hidden && !target.closest("#victory-overlay")) {
+    dismissedVictoryOverlayWinnerId = currentGameState.winnerId;
+    victoryOverlayElement.hidden = true;
+    return;
+  }
+  activateInteractiveElement(target);
+});
+boardStageElement.addEventListener("change", (event) => {
+  const input = event.target.closest("[data-auto-player-id]");
+  if (!input) return;
+
+  currentGameState = {
+    ...currentGameState,
+    players: currentGameState.players.map((player) => (
+      player.id === input.dataset.autoPlayerId
+        ? { ...player, autoPlay: input.checked }
+        : player
+    )),
+  };
+  persistCurrentState();
+  renderInteraction();
+  scheduleAutomatedTurns();
+});
 boardStageElement.addEventListener("keydown", (event) => {
   if (event.key !== "Enter" && event.key !== " ") return;
-  if (!event.target.matches(".piece--valid-action, .cell--valid-destination")) return;
+  if (!event.target.matches(
+    ".piece--valid-action, .cell--valid-destination, .rainbow-link--valid-destination",
+  )) return;
   event.preventDefault();
   activateInteractiveElement(event.target);
 });
@@ -1174,6 +1381,8 @@ firstRollDieElement.addEventListener("pointerdown", (event) => {
 firstRollDieElement.addEventListener("pointerup", () => finishFirstPlayerRollHold());
 firstRollDieElement.addEventListener("pointercancel", () => finishFirstPlayerRollHold());
 firstRollDieElement.addEventListener("lostpointercapture", () => finishFirstPlayerRollHold());
+firstRollDieElement.addEventListener("contextmenu", (event) => event.preventDefault());
+firstRollDieElement.addEventListener("selectstart", (event) => event.preventDefault());
 firstRollDieElement.addEventListener("keydown", (event) => {
   if ((event.key !== "Enter" && event.key !== " ") || event.repeat) return;
   event.preventDefault();
@@ -1328,7 +1537,7 @@ debugPlayerElement.addEventListener("input", () => {
     currentPlayerId: debugPlayerElement.value,
     turn: createPendingTurn(),
   };
-  selectedPieceId = null;
+  clearPieceSelection();
   updateValidActions();
 });
 debugStartTurnElement.addEventListener("click", () => beginTurn([
@@ -1349,12 +1558,28 @@ function startHumanDiceHold() {
 
 async function finishHumanDiceHold() {
   if (!isHumanDiceHolding) return;
+  const generation = flowGeneration;
   window.clearInterval(diceHoldTimer);
   diceHoldTimer = null;
   isHumanDiceHolding = false;
+  renderDiceState();
   const dice = rollDice();
-  rollingDiceValues = dice;
-  updateRollingDiceFaces();
+  const completed = await animatePostReleaseShakes(
+    () => {
+      rollingDiceValues = rollDice();
+      updateRollingDiceFaces();
+    },
+    () => {
+      rollingDiceValues = dice;
+      updateRollingDiceFaces();
+    },
+    () => generation === flowGeneration && appPhase === "game",
+  );
+  if (!completed) {
+    isRolling = false;
+    rollingDiceValues = null;
+    return;
+  }
   isRolling = false;
   rollingDiceValues = null;
   await beginTurn(dice);
@@ -1371,6 +1596,8 @@ dicePanelElements.forEach((panel) => {
   diceButton.addEventListener("pointerup", () => finishHumanDiceHold());
   diceButton.addEventListener("pointercancel", () => finishHumanDiceHold());
   diceButton.addEventListener("lostpointercapture", () => finishHumanDiceHold());
+  diceButton.addEventListener("contextmenu", (event) => event.preventDefault());
+  diceButton.addEventListener("selectstart", (event) => event.preventDefault());
   diceButton.addEventListener("keydown", (event) => {
     if (event.currentTarget !== physicalDiceElement
       || (event.key !== "Enter" && event.key !== " ")
@@ -1427,15 +1654,15 @@ async function runBotTurns() {
           ensureCurrentFlow();
         },
         onTurnStarted: async (state) => {
-          currentGameState = state;
-          validActions = getTurnValidActions(state);
+          currentGameState = preserveAutoPlaySettings(state);
+          validActions = getTurnValidActions(currentGameState);
           persistCurrentState();
           renderInteraction();
         },
         onActionSelected: async (action, state) => {
           ensureCurrentFlow();
-          currentGameState = state;
-          selectedPieceId = action.pieceId;
+          currentGameState = preserveAutoPlaySettings(state);
+          selectPiece(action.pieceId);
           selectedBotAction = action;
           validActions = [];
           renderInteraction(`${player.name} выбирает ${action.pieceId}.`);
@@ -1450,8 +1677,8 @@ async function runBotTurns() {
             console.error("Bot action animation failed.", error);
           }
           ensureCurrentFlow();
-          currentGameState = result.gameState;
-          selectedPieceId = null;
+          currentGameState = preserveAutoPlaySettings(result.gameState);
+          clearPieceSelection();
           selectedBotAction = null;
           validActions = getTurnValidActions(currentGameState);
           persistCurrentState();
@@ -1469,9 +1696,9 @@ async function runBotTurns() {
         },
       });
       ensureCurrentFlow();
-      currentGameState = nextState;
+      currentGameState = preserveAutoPlaySettings(nextState);
       validActions = getTurnValidActions(currentGameState);
-      selectedPieceId = null;
+      clearPieceSelection();
       selectedBotAction = null;
       persistCurrentState();
       renderInteraction();
@@ -1486,12 +1713,76 @@ async function runBotTurns() {
     window.clearInterval(diceHoldTimer);
     diceHoldTimer = null;
     rollingDiceValues = null;
+    if (generation === flowGeneration && appPhase === "game") {
+      renderInteraction();
+      scheduleAutoHumanTurn();
+    }
+  }
+}
+
+async function runAutoHumanTurns() {
+  if (isAutoHumanRunning || isBotRunning || appPhase !== "game") return;
+  const generation = flowGeneration;
+  isAutoHumanRunning = true;
+
+  const ensureCurrentFlow = () => {
+    if (generation !== flowGeneration || appPhase !== "game") {
+      throw new Error("Automatic Human flow cancelled.");
+    }
+  };
+
+  try {
+    while (currentGameState.status === "playing") {
+      const player = currentGameState.players.find(({ id }) => id === currentGameState.currentPlayerId);
+      if (player?.type === "bot") {
+        scheduleBotTurns();
+        break;
+      }
+
+      const step = getAutoHumanStep(currentGameState);
+      if (step.type === "wait") break;
+
+      if (step.type === "roll") {
+        await wait(AUTO_TURN_START_DELAY);
+        ensureCurrentFlow();
+        if (getAutoHumanStep(currentGameState).type !== "roll") break;
+        const dice = rollDice();
+        await animateDiceRoll(dice);
+        ensureCurrentFlow();
+        await beginTurn(dice);
+        ensureCurrentFlow();
+        continue;
+      }
+
+      selectPiece(step.action.pieceId);
+      renderInteraction();
+      await wait(AUTO_ACTION_CHOICE_DELAY);
+      ensureCurrentFlow();
+      await performAction(step.action);
+      ensureCurrentFlow();
+      if (currentGameState.status === "playing") await wait(AUTO_NEXT_ACTION_DELAY);
+    }
+  } catch (error) {
+    if (error.message !== "Automatic Human flow cancelled.") {
+      console.error("Automatic Human turn failed.", error);
+    }
+  } finally {
+    isAutoHumanRunning = false;
     if (generation === flowGeneration && appPhase === "game") renderInteraction();
   }
 }
 
 function scheduleBotTurns() {
   window.setTimeout(() => runBotTurns(), 0);
+}
+
+function scheduleAutoHumanTurn() {
+  window.setTimeout(() => runAutoHumanTurns(), 0);
+}
+
+function scheduleAutomatedTurns() {
+  scheduleBotTurns();
+  scheduleAutoHumanTurn();
 }
 
 function restoreSavedState() {
@@ -1507,11 +1798,11 @@ function restoreSavedState() {
       currentGameState = advanceToNextPlayer(currentGameState);
     }
     validActions = getTurnValidActions(currentGameState);
-    selectedPieceId = null;
+    clearPieceSelection();
     showPhase("game");
     renderInteraction();
     persistCurrentState();
-    scheduleBotTurns();
+    scheduleAutomatedTurns();
     return true;
   }
 
@@ -1524,11 +1815,11 @@ function restoreSavedState() {
         turnOrder: createClockwiseTurnOrder(pendingPlayers, firstPlayerRollState.winnerId),
       });
       validActions = [];
-      selectedPieceId = null;
+      clearPieceSelection();
       showPhase("game");
       persistCurrentState();
       renderInteraction();
-      scheduleBotTurns();
+      scheduleAutomatedTurns();
       return true;
     }
     showPhase("first-player-roll");

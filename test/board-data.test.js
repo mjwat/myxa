@@ -30,3 +30,13 @@ test("player names have slots before their outside pieces", () => {
   assert.deepEqual(playerNames.C, { row: edge, column: 5.25, rotation: 0 });
   assert.deepEqual(playerNames.D, { row: 4.75, column: 1, rotation: 90 });
 });
+
+test("automatic-mode controls sit after the outside-piece slots", () => {
+  const { playerAutoControls } = boardData.pieceSlots;
+  const edge = boardData.pieceLayer.size;
+
+  assert.deepEqual(playerAutoControls.A, { row: 1, column: 4.75, rotation: 180 });
+  assert.deepEqual(playerAutoControls.B, { row: 4.75, column: edge, rotation: -90 });
+  assert.deepEqual(playerAutoControls.C, { row: edge, column: 11.25, rotation: 0 });
+  assert.deepEqual(playerAutoControls.D, { row: 11.25, column: 1, rotation: 90 });
+});

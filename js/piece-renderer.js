@@ -76,12 +76,15 @@ function renderPlayerNames(layer, state, board) {
   state.players.forEach((player) => {
     const slot = board.pieceSlots.playerNames[player.side];
     const isActive = player.id === state.currentPlayerId;
+    const isWinner = player.id === state.winnerId;
     const label = document.createElement("div");
     label.className = [
       "player-name",
       isActive ? "player-name--active" : "",
+      isWinner ? "player-name--winner" : "",
     ].filter(Boolean).join(" ");
     label.dataset.playerId = player.id;
+    label.style.setProperty("--player-color", player.color);
     label.style.setProperty("--player-name-rotation", `${slot.rotation}deg`);
 
     const content = document.createElement("span");
@@ -91,18 +94,48 @@ function renderPlayerNames(layer, state, board) {
     name.textContent = player.name;
     content.append(name);
 
-    if (isActive) {
+    if (isWinner) {
+      const winnerIndicator = document.createElement("span");
+      winnerIndicator.className = "player-name__status";
+      winnerIndicator.textContent = "🏆 Победитель";
+      content.prepend(winnerIndicator);
+      label.setAttribute("aria-label", `Победитель ${player.name}`);
+    } else if (isActive) {
       const turnIndicator = document.createElement("span");
-      turnIndicator.className = "player-name__turn";
+      turnIndicator.className = "player-name__status";
       turnIndicator.textContent = "Ходит";
       content.prepend(turnIndicator);
       label.setAttribute("aria-current", "true");
       label.setAttribute("aria-label", `Ходит ${player.name}`);
     }
-    label.title = isActive ? `Ходит ${player.name}` : player.name;
+    label.title = isWinner
+      ? `Победитель ${player.name}`
+      : isActive ? `Ходит ${player.name}` : player.name;
     label.append(content);
     placeElement(label, slot, board.pieceLayer.size);
     layer.append(label);
+  });
+}
+
+function renderAutoControls(layer, state, board) {
+  state.players.filter(({ type }) => type === "human").forEach((player) => {
+    const slot = board.pieceSlots.playerAutoControls[player.side];
+    const control = document.createElement("label");
+    control.className = "player-auto";
+    control.style.setProperty("--player-color", player.color);
+    control.style.setProperty("--player-auto-rotation", `${slot.rotation}deg`);
+
+    const text = document.createElement("span");
+    text.textContent = "Авто";
+    const input = document.createElement("input");
+    input.className = "player-auto__input";
+    input.type = "checkbox";
+    input.checked = player.autoPlay === true;
+    input.dataset.autoPlayerId = player.id;
+    input.setAttribute("aria-label", `Автоматические ходы игрока ${player.name}`);
+    control.append(text, input);
+    placeElement(control, slot, board.pieceLayer.size);
+    layer.append(control);
   });
 }
 
@@ -124,6 +157,7 @@ export function renderPieces(
 
   renderPlayerNames(layer, state, board);
   renderOutsideSlots(layer, state, board);
+  renderAutoControls(layer, state, board);
   Object.values(state.pieces).forEach((piece) => {
     layer.append(renderPiece(piece, state, board, validPieceIds, selectedPieceId, displayMode));
   });

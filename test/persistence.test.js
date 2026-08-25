@@ -59,6 +59,28 @@ test("an active game round-trips as serializable state", () => {
   assert.deepEqual(loadAppState(storage), { version: 1, ...saved });
 });
 
+test("automatic Human mode is restored and old games default it to off", () => {
+  const storage = createStorage();
+  const draftPlayers = setupPlayers(2);
+  const activePlayers = draftPlayers.slice(0, 2);
+  const gameState = createGame({
+    players: activePlayers,
+    turnOrder: activePlayers.map(({ id }) => id),
+  });
+  gameState.players[0].autoPlay = true;
+  delete gameState.players[1].autoPlay;
+
+  saveAppState(storage, {
+    phase: "game",
+    setup: { playerCount: 2, players: draftPlayers },
+    gameState,
+  });
+
+  const restoredPlayers = loadAppState(storage).gameState.players;
+  assert.equal(restoredPlayers[0].autoPlay, true);
+  assert.equal(restoredPlayers[1].autoPlay, false);
+});
+
 test("first-player roll can be restored before the game begins", () => {
   const storage = createStorage();
   const draftPlayers = setupPlayers(2);

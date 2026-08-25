@@ -116,6 +116,13 @@ const playerNameSlots = Object.freeze({
   D: Object.freeze({ row: 4.75, column: 1, rotation: 90 }),
 });
 
+const playerAutoSlots = Object.freeze({
+  A: Object.freeze({ row: 1, column: 4.75, rotation: 180 }),
+  B: Object.freeze({ row: 4.75, column: PIECE_LAYER_SIZE, rotation: -90 }),
+  C: Object.freeze({ row: PIECE_LAYER_SIZE, column: 11.25, rotation: 0 }),
+  D: Object.freeze({ row: 11.25, column: 1, rotation: 90 }),
+});
+
 const sunPieceSlots = freezeItems(
   Array.from({ length: 4 }, (_, rowIndex) =>
     Array.from({ length: 4 }, (_, columnIndex) => ({
@@ -142,6 +149,7 @@ export const boardData = Object.freeze({
   pieceSlots: Object.freeze({
     outside: outsidePieceSlots,
     playerNames: playerNameSlots,
+    playerAutoControls: playerAutoSlots,
     sun: sunPieceSlots,
   }),
 });
@@ -209,6 +217,9 @@ export function validateBoardData(board = boardData) {
     }
     if (!board.pieceSlots.playerNames[side]) {
       errors.push(`${side} must have a player name slot.`);
+    }
+    if (!board.pieceSlots.playerAutoControls[side]) {
+      errors.push(`${side} must have an automatic-mode control slot.`);
     }
   }
 

@@ -57,10 +57,21 @@ function isGameState(state) {
     || !playerIds.includes(state.currentPlayerId)) return false;
 
   return state.players.every((player) => (
-    Array.isArray(player.pieceIds)
+    (player.autoPlay === undefined || typeof player.autoPlay === "boolean")
+    && Array.isArray(player.pieceIds)
     && player.pieceIds.length === 4
     && player.pieceIds.every((pieceId) => state.pieces[pieceId]?.playerId === player.id)
   ));
+}
+
+function restoreGameDefaults(gameState) {
+  return {
+    ...gameState,
+    players: gameState.players.map((player) => ({
+      ...player,
+      autoPlay: player.type === "human" && player.autoPlay === true,
+    })),
+  };
 }
 
 export function isSavedAppState(value) {
@@ -97,7 +108,10 @@ export function loadAppState(storage) {
     const serialized = storage.getItem(SAVED_APP_STATE_KEY);
     if (!serialized) return null;
     const state = JSON.parse(serialized);
-    return isSavedAppState(state) ? state : null;
+    if (!isSavedAppState(state)) return null;
+    return state.phase === "game"
+      ? { ...state, gameState: restoreGameDefaults(state.gameState) }
+      : state;
   } catch {
     return null;
   }

@@ -613,6 +613,28 @@ p {
   pointer-events: none;
 }
 
+.rainbow-link {
+  outline: none;
+}
+
+.rainbow-link__highlight {
+  opacity: 0;
+}
+
+.rainbow-link--valid-destination .rainbow-link__hit-area {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.rainbow-link--valid-destination .rainbow-link__highlight {
+  opacity: 0.46;
+}
+
+.rainbow-link--valid-destination:focus-visible .rainbow-link__highlight {
+  stroke: #fff36a;
+  opacity: 0.5;
+}
+
 .board__sun {
   z-index: 1;
   display: grid;
@@ -638,6 +660,23 @@ p {
   pointer-events: none;
 }
 
+.board__badges {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cell-action-badge-anchor {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
 .player-name {
   position: absolute;
   z-index: 2;
@@ -658,17 +697,76 @@ p {
 
 .player-name__content {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
   max-width: 100%;
+  align-items: center;
+  gap: 0.45em;
+}
+
+.player-auto {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  translate: -50% -50%;
+  rotate: var(--player-auto-rotation);
+  color: #26332d;
+  font-size: clamp(0.5rem, 1.27vw, 0.78rem);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.player-auto__input {
+  position: relative;
+  width: 1.65em;
+  height: 0.9em;
+  margin: 0;
+  appearance: none;
+  border: 1px solid rgb(38 51 45 / 42%);
+  border-radius: 999px;
+  background: rgb(38 51 45 / 16%);
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.player-auto__input::before {
+  position: absolute;
+  width: 0.62em;
+  height: 0.62em;
+  inset: 50% auto auto 0.1em;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 24%);
+  content: "";
+  transition: translate 140ms ease;
+}
+
+.player-auto__input:checked {
+  border-color: color-mix(in srgb, var(--player-color), #26332d 18%);
+  background: var(--player-color);
+}
+
+.player-auto__input:checked::before {
+  translate: 0.72em -50%;
+}
+
+.player-auto__input:focus-visible {
+  outline: 2px solid #26332d;
+  outline-offset: 2px;
 }
 
 .player-name__name {
-  display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.player-name__turn {
+.player-name__status {
   position: absolute;
   right: calc(100% + 0.35em);
 }
@@ -731,8 +829,10 @@ p {
   filter: brightness(1.08);
 }
 
-.piece--selected {
-  outline-color: #fff;
+.piece--selected,
+.piece--teleporting {
+  outline: clamp(3px, 0.5vw, 5px) solid #fff;
+  outline-offset: clamp(1px, 0.2vw, 3px);
   box-shadow:
     0 0 0 clamp(6px, 0.9vw, 9px) rgb(43 105 190 / 70%),
     0 0.12rem 0.24rem rgb(22 27 24 / 35%);
@@ -749,10 +849,6 @@ p {
 
 .piece--teleporting {
   z-index: 5;
-  outline: clamp(3px, 0.5vw, 5px) solid #fff;
-  box-shadow:
-    0 0 0 clamp(6px, 0.9vw, 9px) rgb(111 142 220 / 65%),
-    0 0 1rem rgb(242 184 63 / 90%);
 }
 
 .cell {
@@ -853,6 +949,52 @@ p {
   filter: brightness(1.08);
 }
 
+.cell-action-badge {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  right: 0;
+  display: flex;
+  min-height: clamp(0.9rem, 2.4vw, 1.25rem);
+  padding: clamp(1px, 0.18vw, 2px);
+  translate: 34% -45%;
+  gap: clamp(1px, 0.15vw, 2px);
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 92%);
+  border-radius: 999px;
+  color: #473b10;
+  background: #fff36a;
+  box-shadow: 0 0.08rem 0.2rem rgb(22 27 24 / 35%);
+  pointer-events: none;
+}
+
+.cell-action-badge--multiplier {
+  display: grid;
+  min-width: clamp(0.9rem, 2.4vw, 1.25rem);
+  padding-inline: 0.18em;
+  font-size: clamp(0.48rem, 1.25vw, 0.68rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.cell-action-badge__die {
+  display: grid;
+  width: clamp(0.7rem, 1.7vw, 0.95rem);
+  aspect-ratio: 1;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: clamp(1px, 0.12vw, 2px);
+  border-radius: clamp(2px, 0.25vw, 4px);
+  background: #fffdf8;
+}
+
+.cell-action-badge__pip {
+  width: clamp(1.5px, 0.22vw, 3px);
+  aspect-ratio: 1;
+  place-self: center;
+  border-radius: 50%;
+  background: #473b10;
+}
+
 .cell--valid-destination[data-action-count="2"] {
   outline-color: #fff69a;
   box-shadow:
@@ -880,6 +1022,9 @@ p {
   display: grid;
   gap: 0.85rem;
   padding: 1rem;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .physical-dice {

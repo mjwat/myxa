@@ -128,6 +128,7 @@ export function createGame(config) {
       id,
       name: configuration.name.trim(),
       type: configuration.type,
+      autoPlay: configuration.type === "human" && configuration.autoPlay === true,
       color: configuration.color,
       side: configuration.side,
       pieceIds: Array.from({ length: 4 }, (_, index) => `${id}-P${index + 1}`),
@@ -149,6 +150,7 @@ export function createGame(config) {
 export function createDevelopmentGameState() {
   const players = PLAYER_CONFIGURATIONS.map((configuration) => ({
     ...configuration,
+    autoPlay: false,
     pieceIds: Array.from({ length: 4 }, (_, index) => `${configuration.id}-P${index + 1}`),
   }));
 
