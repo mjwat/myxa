@@ -25,6 +25,10 @@ body {
   padding: clamp(1rem, 4vw, 2.5rem);
 }
 
+.orientation-guard {
+  display: none;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -1385,5 +1389,55 @@ p {
 
   .rule-debug output {
     grid-column: 1 / -1;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 980px) and (max-height: 600px) {
+  body {
+    overflow: hidden;
+  }
+
+  .page-shell {
+    visibility: hidden;
+  }
+
+  .orientation-guard {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: grid;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding:
+      max(1.5rem, env(safe-area-inset-top))
+      max(1.5rem, env(safe-area-inset-right))
+      max(1.5rem, env(safe-area-inset-bottom))
+      max(1.5rem, env(safe-area-inset-left));
+    place-content: center;
+    place-items: center;
+    color: #24312b;
+    background:
+      radial-gradient(circle at 50% 35%, rgb(255 255 255 / 82%), transparent 18rem),
+      #f3efe3;
+    text-align: center;
+  }
+
+  .orientation-guard__icon {
+    margin-bottom: 0.75rem;
+    color: #2f7150;
+    font-size: clamp(4rem, 16vh, 7rem);
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .orientation-guard h1 {
+    margin: 0;
+    font-size: clamp(1.4rem, 6vh, 2rem);
+  }
+
+  .orientation-guard p {
+    margin: 0.55rem 0 0;
+    color: #626b64;
+    font-size: clamp(0.95rem, 3.5vh, 1.1rem);
   }
 }

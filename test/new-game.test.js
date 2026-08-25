@@ -21,9 +21,11 @@ function players(count) {
   }));
 }
 
-test("two players are assigned to opposite sides", () => {
-  assert.deepEqual(getPlayerSides(2), ["A", "C"]);
-  assert.deepEqual(createGame(config(2)).players.map(({ side }) => side), ["A", "C"]);
+test("player numbering starts at the bottom and continues clockwise", () => {
+  assert.deepEqual(getPlayerSides(2), ["C", "A"]);
+  assert.deepEqual(getPlayerSides(3), ["C", "D", "A"]);
+  assert.deepEqual(getPlayerSides(4), ["C", "D", "A", "B"]);
+  assert.deepEqual(createGame(config(2)).players.map(({ side }) => side), ["C", "A"]);
 });
 
 test("the only human player is assigned to the bottom side", () => {
@@ -41,13 +43,13 @@ test("the only human player is assigned to the bottom side", () => {
   }
 });
 
-test("games with several human players keep the standard side layout", () => {
+test("games with several human players keep the bottom-first side layout", () => {
   const configuredPlayers = players(4).map((player, index) => ({
     ...player,
     type: index < 2 ? "human" : "bot",
   }));
 
-  assert.deepEqual(assignPlayerSides(configuredPlayers).map(({ side }) => side), ["A", "B", "C", "D"]);
+  assert.deepEqual(assignPlayerSides(configuredPlayers).map(({ side }) => side), ["C", "D", "A", "B"]);
 });
 
 test("turns continue clockwise from the first player regardless of setup order", () => {
@@ -57,10 +59,10 @@ test("turns continue clockwise from the first player regardless of setup order",
   }));
   const assignedPlayers = assignPlayerSides(configuredPlayers);
 
-  assert.deepEqual(assignedPlayers.map(({ side }) => side), ["C", "B", "A", "D"]);
+  assert.deepEqual(assignedPlayers.map(({ side }) => side), ["C", "D", "A", "B"]);
   assert.deepEqual(
     createClockwiseTurnOrder(assignedPlayers, "player-1"),
-    ["player-1", "player-4", "player-3", "player-2"],
+    ["player-1", "player-2", "player-3", "player-4"],
   );
 });
 

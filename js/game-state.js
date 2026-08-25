@@ -8,9 +8,9 @@ export const PLAYER_COLORS = Object.freeze([
 ]);
 
 const PLAYER_SIDE_LAYOUTS = Object.freeze({
-  2: Object.freeze(["A", "C"]),
-  3: Object.freeze(["A", "B", "C"]),
-  4: Object.freeze(["A", "B", "C", "D"]),
+  2: Object.freeze(["C", "A"]),
+  3: Object.freeze(["C", "D", "A"]),
+  4: Object.freeze(["C", "D", "A", "B"]),
 });
 
 export function getPlayerSides(playerCount) {

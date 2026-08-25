@@ -14,6 +14,11 @@ The board is a fixed 13 × 13 grid with four symmetric sides:
 -   `C`
 -   `D`
 
+The rendered sides are `A` at the top, `B` at the right, `C` at the bottom,
+and `D` at the left. Setup assigns player 1 to `C` and continues clockwise
+from there. The side layouts for 2--4 players are respectively `C, A`,
+`C, D, A`, and `C, D, A, B`.
+
 Technical cell IDs are internal and are never shown to players.
 
 ## Cell IDs
