@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { swapPlayerColor } from "../js/setup-players.js";
+import { DEFAULT_PLAYER_NAMES, swapPlayerColor } from "../js/setup-players.js";
+
+test("new games use Russian preset player names", () => {
+  assert.deepEqual(DEFAULT_PLAYER_NAMES, ["Игрок 1", "Игрок 2", "Игрок 3", "Игрок 4"]);
+});
 
 const players = [
   { id: "one", color: "red" },

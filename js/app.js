@@ -29,6 +29,7 @@ import {
   getHumanDicePositions,
   shouldInvertTopDiceCaption,
 } from "./dice-ui.js";
+import { appendDiePips, getDiePipPositions } from "./die-face.js";
 import {
   DISPLAY_MODES,
   getCellDisplay,
@@ -39,7 +40,7 @@ import { applyBoardPlayerColors } from "./board-theme.js";
 import { playBotTurn } from "./bot-player.js";
 import { getAutoHumanStep } from "./auto-player.js";
 import { parseRulesMarkdown, renderRulesSlide } from "./rules-dialog.js";
-import { swapPlayerColor } from "./setup-players.js";
+import { DEFAULT_PLAYER_NAMES, swapPlayerColor } from "./setup-players.js";
 import {
   getActionSelectionCells,
   getSequenceBadge,
@@ -233,23 +234,20 @@ badgeLayerElement.setAttribute("aria-hidden", "true");
 boardStageElement.append(badgeLayerElement);
 
 const setupScreenElement = document.querySelector("#setup-screen");
-const firstRollScreenElement = document.querySelector("#first-roll-screen");
 const gameScreenElement = document.querySelector("#game-screen");
+const headerShowRulesElement = document.querySelector("#header-show-rules");
+const openGameMenuElement = document.querySelector("#open-game-menu");
+const gameMenuElement = document.querySelector("#game-menu");
+const closeGameMenuElement = document.querySelector("#close-game-menu");
+const gameMenuActionsElement = document.querySelector("#game-menu-actions");
+const newGameConfirmationElement = document.querySelector("#new-game-confirmation");
 const setupFormElement = document.querySelector("#setup-form");
 const playerSettingsElement = document.querySelector("#player-settings");
 const setupErrorElement = document.querySelector("#setup-error");
 const startGameElement = document.querySelector("#start-game");
-const firstRollBackElement = document.querySelector("#first-roll-back");
-const firstRollShowRulesElement = document.querySelector("#first-roll-show-rules");
-const firstRollStatusElement = document.querySelector("#first-roll-status");
-const firstRollDieElement = document.querySelector("#first-roll-die");
-const firstRollResultsElement = document.querySelector("#first-roll-results");
 const newGameElement = document.querySelector("#new-game");
-const newGamePopupElement = document.querySelector("#new-game-popup");
-const cancelNewGameElement = document.querySelector("#cancel-new-game");
 const confirmNewGameElement = document.querySelector("#confirm-new-game");
 const showRulesElement = document.querySelector("#show-rules");
-const setupShowRulesElement = document.querySelector("#setup-show-rules");
 const rulesDialogElement = document.querySelector("#rules-dialog");
 const closeRulesElement = document.querySelector("#close-rules");
 const rulesSlideTitleElement = document.querySelector("#rules-slide-title");
@@ -285,7 +283,7 @@ let appPhase = "setup";
 let setupPlayerCount = 2;
 let setupPlayers = PLAYER_COLORS.map((color, index) => ({
   id: `player-${index + 1}`,
-  name: `Player ${index + 1}`,
+  name: DEFAULT_PLAYER_NAMES[index],
   type: "human",
   color: color.value,
 }));
@@ -319,20 +317,11 @@ async function animatePostReleaseShakes(renderRandomFrame, renderFinalFrame, isC
   return true;
 }
 
-const DIE_PIP_POSITIONS = {
-  1: [5],
-  2: [1, 9],
-  3: [1, 5, 9],
-  4: [1, 3, 7, 9],
-  5: [1, 3, 5, 7, 9],
-  6: [1, 3, 4, 6, 7, 9],
-};
-
 function renderDieFace(die, value) {
   die.replaceChildren();
   die.dataset.value = value ?? "";
 
-  if (!DIE_PIP_POSITIONS[value]) {
+  if (getDiePipPositions(value).length === 0) {
     const placeholder = document.createElement("span");
     placeholder.className = "physical-die__placeholder";
     placeholder.textContent = "–";
@@ -341,15 +330,6 @@ function renderDieFace(die, value) {
   }
 
   appendDiePips(die, value, "physical-die__pip");
-}
-
-function appendDiePips(die, value, className) {
-  DIE_PIP_POSITIONS[value].forEach((position) => {
-    const pip = document.createElement("span");
-    pip.className = className;
-    pip.style.gridArea = `${Math.ceil(position / 3)} / ${((position - 1) % 3) + 1}`;
-    die.append(pip);
-  });
 }
 
 function renderDestinationBadge(cell, badgeModel) {
@@ -431,9 +411,12 @@ function preserveAutoPlaySettings(nextState, latestState = currentGameState) {
 
 function showPhase(phase) {
   appPhase = phase;
+  document.documentElement.dataset.appPhase = phase;
   setupScreenElement.hidden = phase !== "setup";
-  firstRollScreenElement.hidden = phase !== "first-player-roll";
-  gameScreenElement.hidden = phase !== "game";
+  gameScreenElement.hidden = phase === "setup";
+  headerShowRulesElement.hidden = phase !== "setup";
+  openGameMenuElement.hidden = phase === "setup";
+  if (phase === "setup") closeGameMenu();
 }
 
 function getActiveSetupPlayers() {
@@ -467,32 +450,39 @@ function renderSetupPlayers() {
     number.textContent = String(index + 1);
 
     const nameLabel = document.createElement("label");
-    nameLabel.className = "field-label";
-    nameLabel.textContent = "Имя";
+    nameLabel.className = "field-label player-setting__name";
+    const nameLabelText = document.createElement("span");
+    nameLabelText.className = "visually-hidden";
+    nameLabelText.textContent = `Имя игрока ${index + 1}`;
     const nameInput = document.createElement("input");
     nameInput.name = `player-${index + 1}-name`;
     nameInput.value = player.name;
     nameInput.maxLength = 32;
     nameInput.required = true;
-    nameLabel.append(nameInput);
+    nameLabel.append(nameLabelText, nameInput);
 
-    const typeLabel = document.createElement("label");
-    typeLabel.className = "field-label";
-    typeLabel.textContent = "Тип";
-    const typeSelect = document.createElement("select");
-    typeSelect.name = `player-${index + 1}-type`;
+    const typeOptions = document.createElement("div");
+    typeOptions.className = "type-options";
+    typeOptions.setAttribute("role", "radiogroup");
+    typeOptions.setAttribute("aria-label", `Тип игрока ${index + 1}`);
     for (const [value, label] of [["human", "Игрок"], ["bot", "Бот"]]) {
-      const option = document.createElement("option");
+      const optionLabel = document.createElement("label");
+      optionLabel.className = "type-option";
+      const option = document.createElement("input");
+      option.type = "radio";
+      option.name = `player-${index + 1}-type`;
       option.value = value;
-      option.textContent = label;
-      option.selected = player.type === value;
-      typeSelect.append(option);
+      option.checked = player.type === value;
+      const optionText = document.createElement("span");
+      optionText.textContent = label;
+      optionLabel.append(option, optionText);
+      typeOptions.append(optionLabel);
     }
-    typeLabel.append(typeSelect);
 
     const colorLabel = document.createElement("div");
-    colorLabel.className = "field-label";
+    colorLabel.className = "field-label player-setting__colors";
     const colorLabelText = document.createElement("span");
+    colorLabelText.className = "visually-hidden";
     colorLabelText.textContent = "Цвет";
     const colorOptions = document.createElement("div");
     colorOptions.className = "color-options";
@@ -516,7 +506,7 @@ function renderSetupPlayers() {
     });
     colorLabel.append(colorLabelText, colorOptions);
 
-    row.append(number, nameLabel, typeLabel, colorLabel);
+    row.append(number, nameLabel, typeOptions, colorLabel);
     return row;
   });
 
@@ -558,52 +548,91 @@ function latestFirstRollValue(playerId) {
   return null;
 }
 
+function getFirstRollValues() {
+  return Object.fromEntries(
+    pendingPlayers.map(({ id }) => [id, latestFirstRollValue(id)]),
+  );
+}
+
+function getFirstRollStatusMessage(state, currentPlayer) {
+  if (state.status === "complete") {
+    return `${playerForFirstRoll(state.winnerId).name} ходит первым`;
+  }
+  const prefix = state.round > 1 && Object.keys(state.results).length === 0 ? "Ничья. " : "";
+  if (currentPlayer.type === "bot") return `${prefix}${currentPlayer.name} бросает автоматически…`;
+  if (isFirstRollHolding) return `${prefix}${currentPlayer.name}, отпустите кубик`;
+  if (isFirstRollRolling) return `${prefix}${currentPlayer.name}: кубик бросается…`;
+  return `${prefix}${currentPlayer.name}, зажмите кубик для броска`;
+}
+
 function renderFirstPlayerRoll() {
   const state = firstPlayerRollState;
-  const currentPlayer = playerForFirstRoll(state.currentPlayerId);
-  const die = firstRollDieElement.querySelector(".physical-die");
-  const currentValue = currentPlayer ? latestFirstRollValue(currentPlayer.id) : null;
+  const displayPlayerId = state.currentPlayerId ?? state.winnerId;
+  const currentPlayer = playerForFirstRoll(displayPlayerId);
+  const currentValue = latestFirstRollValue(displayPlayerId);
+  const renderState = {
+    ...currentGameState,
+    currentPlayerId: state.status === "rolling" ? state.currentPlayerId : null,
+    winnerId: null,
+  };
 
-  firstRollDieElement.disabled = (isFirstRollRolling && !isFirstRollHolding)
-    || !currentPlayer
-    || currentPlayer.type === "bot";
-  die.className = `physical-die ${isFirstRollRolling ? "physical-die--rolling" : "physical-die--not-rolled"}`;
-  if (!isFirstRollRolling) renderDieFace(die, currentValue);
-
-  if (state.status === "complete") {
-    const winner = playerForFirstRoll(state.winnerId);
-    firstRollStatusElement.textContent = `${winner.name} начинает. Запускаем партию…`;
-  } else if (state.round > 1) {
-    firstRollStatusElement.textContent = `${currentPlayer.name}: переброс после ничьей (раунд ${state.round})`;
-  } else {
-    firstRollStatusElement.textContent = currentPlayer.type === "bot"
-      ? `${currentPlayer.name} бросает автоматически…`
-      : isFirstRollHolding
-        ? `${currentPlayer.name}, отпустите кубик для броска`
-        : isFirstRollRolling
-          ? `${currentPlayer.name}, кубик бросается…`
-          : `${currentPlayer.name}, зажмите кубик для броска`;
-  }
-
-  const items = pendingPlayers.map((player) => {
-    const item = document.createElement("li");
-    item.className = [
-      "roll-result",
-      state.currentPlayerId === player.id ? "roll-result--current" : "",
-    ].filter(Boolean).join(" ");
-    item.style.setProperty("--player-color", player.color);
-    const name = document.createElement("span");
-    name.textContent = `${player.name} · ${player.type === "bot" ? "Бот" : "Игрок"}`;
-    const result = document.createElement("span");
-    const value = latestFirstRollValue(player.id);
-    result.className = `physical-die roll-result__die${value ? "" : " physical-die--not-rolled"}`;
-    result.setAttribute("role", "img");
-    result.setAttribute("aria-label", value ? `Выпало ${value}` : "Кубик ещё не брошен");
-    renderDieFace(result, value);
-    item.append(name, result);
-    return item;
+  gameScreenElement.dataset.playerCount = String(pendingPlayers.length);
+  applyBoardPlayerColors(boardElement, pendingPlayers);
+  renderPieces(boardStageElement, renderState, boardData, {
+    displayMode,
+    firstRoll: {
+      status: state.status,
+      participants: state.participants,
+      values: getFirstRollValues(),
+      winnerId: state.winnerId,
+    },
+    showAutoControls: false,
   });
-  firstRollResultsElement.replaceChildren(...items);
+  clearDestinationHighlights();
+  victoryOverlayElement.hidden = true;
+  victoryOverlayElement.replaceChildren();
+
+  const activePosition = compactGameLayoutQuery.matches
+    ? getDicePosition(pendingPlayers, displayPlayerId)
+    : "bottom";
+  const activePanel = dicePanelElements.find(({ dataset }) => dataset.dicePosition === activePosition)
+    ?? dicePanelElement;
+  const statusMessage = getFirstRollStatusMessage(state, currentPlayer);
+
+  dicePanelElements.forEach((panel) => {
+    const isActive = panel === activePanel;
+    const diceButton = panel.querySelector(".physical-dice");
+    const panelStatus = panel.querySelector(".turn-status");
+    panel.classList.remove("dice-panel--first-roll", "dice-panel--first-roll-inactive");
+    panel.classList.add("dice-panel--first-roll");
+    panel.classList.toggle("dice-panel--first-roll-inactive", !isActive);
+    panel.classList.toggle("dice-panel--current", isActive);
+    panel.classList.toggle(
+      "dice-panel--caption-inverted",
+      isActive && panel.dataset.dicePosition === "top" && shouldInvertTopDiceCaption(pendingPlayers),
+    );
+    panel.style.setProperty("--dice-owner-color", currentPlayer.color);
+    diceButton.classList.remove("physical-dice--double");
+    diceButton.disabled = !isActive
+      || state.status === "complete"
+      || currentPlayer.type === "bot"
+      || (isFirstRollRolling && !isFirstRollHolding);
+    diceButton.setAttribute("aria-label", `Бросить кубик: ${currentPlayer.name}`);
+    diceButton.replaceChildren();
+    if (isActive) {
+      const die = document.createElement("span");
+      die.className = `physical-die ${isFirstRollRolling ? "physical-die--rolling" : currentValue ? "" : "physical-die--not-rolled"}`.trim();
+      renderDieFace(die, currentValue);
+      diceButton.append(die);
+    }
+    panelStatus.textContent = isActive ? statusMessage : "";
+    panelStatus.classList.toggle("turn-status--hidden", !isActive);
+    panelStatus.setAttribute("aria-hidden", String(!isActive));
+    panelStatus.setAttribute("aria-live", isActive ? "polite" : "off");
+  });
+
+  physicalDiceElement = activePanel.querySelector(".physical-dice");
+  turnStatusElement = activePanel.querySelector(".turn-status");
 
   if (currentPlayer?.type === "bot" && !isFirstRollRolling) runFirstPlayerRoll(true);
 }
@@ -621,7 +650,7 @@ async function runFirstPlayerRoll(isBot = false) {
   if (generation !== flowGeneration || appPhase !== "first-player-roll") return;
 
   const finalValue = rollDie();
-  const die = firstRollDieElement.querySelector(".physical-die");
+  const die = physicalDiceElement.querySelector(".physical-die");
   for (let frame = 0; frame < 6; frame += 1) {
     renderDieFace(die, frame === 5 ? finalValue : rollDie());
     await wait(DICE_ROLL_FRAME_DURATION);
@@ -664,7 +693,7 @@ function startFirstPlayerRollHold() {
   isFirstRollRolling = true;
   isFirstRollHolding = true;
   renderFirstPlayerRoll();
-  const die = firstRollDieElement.querySelector(".physical-die");
+  const die = physicalDiceElement.querySelector(".physical-die");
   renderDieFace(die, rollDie());
   firstRollHoldTimer = window.setInterval(() => renderDieFace(die, rollDie()), DICE_ROLL_FRAME_DURATION);
 }
@@ -678,7 +707,7 @@ async function finishFirstPlayerRollHold() {
   isFirstRollHolding = false;
   renderFirstPlayerRoll();
   const finalValue = rollDie();
-  const die = firstRollDieElement.querySelector(".physical-die");
+  const die = physicalDiceElement.querySelector(".physical-die");
   const completed = await animatePostReleaseShakes(
     () => renderDieFace(die, rollDie()),
     () => renderDieFace(die, finalValue),
@@ -696,6 +725,10 @@ function beginFirstPlayerFlow() {
   firstPlayerRollState = createFirstPlayerRoll(
     createClockwiseTurnOrder(pendingPlayers, pendingPlayers[0].id),
   );
+  currentGameState = createGame({
+    players: pendingPlayers,
+    turnOrder: createClockwiseTurnOrder(pendingPlayers, pendingPlayers[0].id),
+  });
   isFirstRollRolling = false;
   isFirstRollHolding = false;
   flowGeneration += 1;
@@ -1028,6 +1061,7 @@ function renderDiceState(message) {
     const diceToRender = isActive
       ? renderedDice
       : [0, 1].map((id) => ({ id, value: null, status: "not-rolled", statusLabel: "ожидает" }));
+    panel.classList.remove("dice-panel--first-roll", "dice-panel--first-roll-inactive");
     const isHumanDicePanel = humanDicePositions.has(panel.dataset.dicePosition);
     const showCaption = !compactGameLayoutQuery.matches
       || (isHumanDicePanel && (!isActive || currentPlayer?.type === "human"));
@@ -1372,27 +1406,6 @@ setupFormElement.addEventListener("submit", (event) => {
   }
   beginFirstPlayerFlow();
 });
-firstRollDieElement.addEventListener("pointerdown", (event) => {
-  if (event.button !== 0) return;
-  event.preventDefault();
-  event.currentTarget.setPointerCapture(event.pointerId);
-  startFirstPlayerRollHold();
-});
-firstRollDieElement.addEventListener("pointerup", () => finishFirstPlayerRollHold());
-firstRollDieElement.addEventListener("pointercancel", () => finishFirstPlayerRollHold());
-firstRollDieElement.addEventListener("lostpointercapture", () => finishFirstPlayerRollHold());
-firstRollDieElement.addEventListener("contextmenu", (event) => event.preventDefault());
-firstRollDieElement.addEventListener("selectstart", (event) => event.preventDefault());
-firstRollDieElement.addEventListener("keydown", (event) => {
-  if ((event.key !== "Enter" && event.key !== " ") || event.repeat) return;
-  event.preventDefault();
-  startFirstPlayerRollHold();
-});
-firstRollDieElement.addEventListener("keyup", (event) => {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  event.preventDefault();
-  finishFirstPlayerRollHold();
-});
 
 function setRulesNavigationEnabled(enabled) {
   rulesPreviousElement.disabled = !enabled || rulesSlideIndex === 0;
@@ -1451,9 +1464,8 @@ function renderRulesLoadError() {
   setRulesNavigationEnabled(false);
 }
 
-async function openRulesDialog() {
-  closeNewGamePopup();
-  rulesReturnFocusElement = document.activeElement;
+async function openRulesDialog(returnFocusElement = document.activeElement) {
+  rulesReturnFocusElement = returnFocusElement;
   rulesSlideIndex = 0;
   rulesSlideTitleElement.textContent = "Правила";
   rulesContentElement.textContent = "Загрузка правил…";
@@ -1470,10 +1482,11 @@ async function openRulesDialog() {
   }
 }
 
-showRulesElement.addEventListener("click", () => openRulesDialog());
-setupShowRulesElement.addEventListener("click", () => openRulesDialog());
-firstRollShowRulesElement.addEventListener("click", () => openRulesDialog());
-firstRollBackElement.addEventListener("click", () => returnToSetup());
+headerShowRulesElement.addEventListener("click", () => openRulesDialog());
+showRulesElement.addEventListener("click", () => {
+  closeGameMenu({ restoreFocus: false });
+  openRulesDialog(openGameMenuElement);
+});
 closeRulesElement.addEventListener("click", () => rulesDialogElement.close());
 rulesPreviousElement.addEventListener("click", () => goToRulesSlide(rulesSlideIndex - 1));
 rulesNextElement.addEventListener("click", () => goToRulesSlide(rulesSlideIndex + 1));
@@ -1495,40 +1508,42 @@ rulesDialogElement.addEventListener("close", () => {
   rulesReturnFocusElement = null;
 });
 
-function closeNewGamePopup({ restoreFocus = false } = {}) {
-  if (newGamePopupElement.hidden) return;
-  newGamePopupElement.hidden = true;
-  newGameElement.setAttribute("aria-expanded", "false");
-  if (restoreFocus) newGameElement.focus();
+function resetGameMenuView() {
+  gameMenuActionsElement.hidden = false;
+  newGameConfirmationElement.hidden = true;
 }
 
-function openNewGamePopup() {
-  newGamePopupElement.hidden = false;
-  newGameElement.setAttribute("aria-expanded", "true");
-  cancelNewGameElement.focus();
+function closeGameMenu({ restoreFocus = true } = {}) {
+  if (gameMenuElement.open) gameMenuElement.close();
+  openGameMenuElement.setAttribute("aria-expanded", "false");
+  resetGameMenuView();
+  if (restoreFocus && !openGameMenuElement.hidden) openGameMenuElement.focus();
 }
 
+function openGameMenu() {
+  resetGameMenuView();
+  gameMenuElement.showModal();
+  openGameMenuElement.setAttribute("aria-expanded", "true");
+  closeGameMenuElement.focus();
+}
+
+openGameMenuElement.addEventListener("click", openGameMenu);
+closeGameMenuElement.addEventListener("click", () => closeGameMenu());
+gameMenuElement.addEventListener("click", (event) => {
+  if (event.target === gameMenuElement) closeGameMenu();
+});
+gameMenuElement.addEventListener("close", () => {
+  openGameMenuElement.setAttribute("aria-expanded", "false");
+  resetGameMenuView();
+});
 newGameElement.addEventListener("click", () => {
-  if (currentGameState?.status !== "playing") {
-    returnToSetup();
-    return;
-  }
-
-  if (newGamePopupElement.hidden) openNewGamePopup();
-  else closeNewGamePopup({ restoreFocus: true });
+  gameMenuActionsElement.hidden = true;
+  newGameConfirmationElement.hidden = false;
+  confirmNewGameElement.focus();
 });
-cancelNewGameElement.addEventListener("click", () => closeNewGamePopup({ restoreFocus: true }));
 confirmNewGameElement.addEventListener("click", () => {
-  closeNewGamePopup();
+  closeGameMenu({ restoreFocus: false });
   returnToSetup();
-});
-document.addEventListener("pointerdown", (event) => {
-  if (newGamePopupElement.hidden || event.target.closest(".new-game-action")) return;
-  closeNewGamePopup();
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape" || newGamePopupElement.hidden) return;
-  closeNewGamePopup({ restoreFocus: true });
 });
 debugScenarioElement.addEventListener("input", loadScenario);
 debugPlayerElement.addEventListener("input", () => {
@@ -1591,29 +1606,37 @@ dicePanelElements.forEach((panel) => {
     if (event.button !== 0 || event.currentTarget !== physicalDiceElement) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    startHumanDiceHold();
+    if (appPhase === "first-player-roll") startFirstPlayerRollHold();
+    else startHumanDiceHold();
   });
-  diceButton.addEventListener("pointerup", () => finishHumanDiceHold());
-  diceButton.addEventListener("pointercancel", () => finishHumanDiceHold());
-  diceButton.addEventListener("lostpointercapture", () => finishHumanDiceHold());
+  const finishDiceHold = () => (
+    appPhase === "first-player-roll" ? finishFirstPlayerRollHold() : finishHumanDiceHold()
+  );
+  diceButton.addEventListener("pointerup", finishDiceHold);
+  diceButton.addEventListener("pointercancel", finishDiceHold);
+  diceButton.addEventListener("lostpointercapture", finishDiceHold);
   diceButton.addEventListener("contextmenu", (event) => event.preventDefault());
   diceButton.addEventListener("selectstart", (event) => event.preventDefault());
+  diceButton.addEventListener("dragstart", (event) => event.preventDefault());
   diceButton.addEventListener("keydown", (event) => {
     if (event.currentTarget !== physicalDiceElement
       || (event.key !== "Enter" && event.key !== " ")
       || event.repeat) return;
     event.preventDefault();
-    startHumanDiceHold();
+    if (appPhase === "first-player-roll") startFirstPlayerRollHold();
+    else startHumanDiceHold();
   });
   diceButton.addEventListener("keyup", (event) => {
     if (event.currentTarget !== physicalDiceElement || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
-    finishHumanDiceHold();
+    if (appPhase === "first-player-roll") finishFirstPlayerRollHold();
+    else finishHumanDiceHold();
   });
 });
 
 compactGameLayoutQuery.addEventListener("change", () => {
   if (appPhase === "game") renderInteraction();
+  else if (appPhase === "first-player-roll") renderFirstPlayerRoll();
 });
 
 async function animateDiceRoll(dice) {
@@ -1822,6 +1845,10 @@ function restoreSavedState() {
       scheduleAutomatedTurns();
       return true;
     }
+    currentGameState = createGame({
+      players: pendingPlayers,
+      turnOrder: createClockwiseTurnOrder(pendingPlayers, pendingPlayers[0].id),
+    });
     showPhase("first-player-roll");
     renderFirstPlayerRoll();
     return true;

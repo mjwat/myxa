@@ -1,4 +1,5 @@
 import { DISPLAY_MODES, getPieceDisplay } from "./display-mode.js";
+import { appendDiePips } from "./die-face.js";
 
 function getPlayer(state, playerId) {
   return state.players.find(({ id }) => id === playerId);
@@ -72,16 +73,22 @@ function renderOutsideSlots(layer, state, board) {
   });
 }
 
-function renderPlayerNames(layer, state, board) {
+function renderPlayerNames(layer, state, board, firstRoll = null) {
   state.players.forEach((player) => {
     const slot = board.pieceSlots.playerNames[player.side];
     const isActive = player.id === state.currentPlayerId;
     const isWinner = player.id === state.winnerId;
+    const isFirstRollInactive = firstRoll
+      && firstRoll.status === "rolling"
+      && !firstRoll.participants.includes(player.id);
+    const rollValue = firstRoll?.values?.[player.id] ?? null;
     const label = document.createElement("div");
     label.className = [
       "player-name",
       isActive ? "player-name--active" : "",
       isWinner ? "player-name--winner" : "",
+      isFirstRollInactive ? "player-name--first-roll-inactive" : "",
+      firstRoll?.winnerId === player.id ? "player-name--first-roll-winner" : "",
     ].filter(Boolean).join(" ");
     label.dataset.playerId = player.id;
     label.style.setProperty("--player-color", player.color);
@@ -94,6 +101,22 @@ function renderPlayerNames(layer, state, board) {
     name.textContent = player.name;
     content.append(name);
 
+    if (firstRoll) {
+      const result = document.createElement("span");
+      result.className = "player-name__roll";
+      if (rollValue) {
+        appendDiePips(result, rollValue, "player-name__roll-pip");
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.className = "player-name__roll-placeholder";
+        placeholder.textContent = "–";
+        result.append(placeholder);
+      }
+      result.setAttribute("aria-label", rollValue ? `Выпало ${rollValue}` : "Ещё не бросал");
+      result.setAttribute("role", "img");
+      content.append(result);
+    }
+
     if (isWinner) {
       const winnerIndicator = document.createElement("span");
       winnerIndicator.className = "player-name__status";
@@ -103,14 +126,14 @@ function renderPlayerNames(layer, state, board) {
     } else if (isActive) {
       const turnIndicator = document.createElement("span");
       turnIndicator.className = "player-name__status";
-      turnIndicator.textContent = "Ходит";
+      turnIndicator.textContent = firstRoll ? "Бросает" : "Ходит";
       content.prepend(turnIndicator);
       label.setAttribute("aria-current", "true");
-      label.setAttribute("aria-label", `Ходит ${player.name}`);
+      label.setAttribute("aria-label", `${firstRoll ? "Бросает" : "Ходит"} ${player.name}`);
     }
     label.title = isWinner
       ? `Победитель ${player.name}`
-      : isActive ? `Ходит ${player.name}` : player.name;
+      : isActive ? `${firstRoll ? "Бросает" : "Ходит"} ${player.name}` : player.name;
     label.append(content);
     placeElement(label, slot, board.pieceLayer.size);
     layer.append(label);
@@ -147,6 +170,8 @@ export function renderPieces(
     validPieceIds = new Set(),
     selectedPieceId = null,
     displayMode = DISPLAY_MODES.DEVELOPMENT,
+    firstRoll = null,
+    showAutoControls = true,
   } = {},
 ) {
   const layer = document.createElement("div");
@@ -155,9 +180,9 @@ export function renderPieces(
   layer.style.setProperty("--sun-piece-size", `${42 / board.pieceLayer.size}%`);
   layer.setAttribute("aria-label", "Фишки игроков");
 
-  renderPlayerNames(layer, state, board);
+  renderPlayerNames(layer, state, board, firstRoll);
   renderOutsideSlots(layer, state, board);
-  renderAutoControls(layer, state, board);
+  if (showAutoControls) renderAutoControls(layer, state, board);
   Object.values(state.pieces).forEach((piece) => {
     layer.append(renderPiece(piece, state, board, validPieceIds, selectedPieceId, displayMode));
   });

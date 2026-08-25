@@ -9,16 +9,37 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
+    <header class="app-header">
+      <div class="app-header__inner">
+        <div class="brand" aria-label="Муха — легендарная настольная игра">
+          <img class="brand__mark" src="favicon.png" alt="">
+          <span class="brand__copy">
+            <span class="brand__name">МУХА</span>
+            <span class="brand__tagline">легендарная настольная игра</span>
+          </span>
+        </div>
+        <div class="app-header__actions">
+          <button id="header-show-rules" class="icon-button" type="button" aria-label="Правила">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M12 10.5v6"></path>
+              <path d="M12 7.25h.01"></path>
+            </svg>
+          </button>
+          <button id="open-game-menu" class="icon-button" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="game-menu" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 7h14M5 12h14M5 17h14"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
     <main class="page-shell">
       <section id="setup-screen" class="flow-screen setup-screen" aria-labelledby="setup-title">
         <div class="flow-card">
-          <p class="eyebrow">Муха</p>
           <div class="setup-heading">
-            <h1 id="setup-title">Настройки партии</h1>
-            <button id="setup-show-rules" class="secondary-button setup-rules-button responsive-action-button" type="button" aria-label="Правила">
-              <span class="responsive-action-button__label">Правила</span>
-              <span class="responsive-action-button__icon" aria-hidden="true">ℹ️</span>
-            </button>
+            <h1 id="setup-title"><span aria-hidden="true">⚙️</span> НАСТРОЙКИ ИГРЫ</h1>
           </div>
           <form id="setup-form">
             <div class="player-count" role="radiogroup" aria-labelledby="player-count-label">
@@ -36,48 +57,8 @@
         </div>
       </section>
 
-      <section id="first-roll-screen" class="flow-screen first-roll-screen" aria-labelledby="first-roll-title" hidden>
-        <div class="flow-card flow-card--compact">
-          <nav class="first-roll-actions" aria-label="Действия перед началом партии">
-            <button id="first-roll-back" class="secondary-button responsive-action-button" type="button" aria-label="Назад">
-              <span class="responsive-action-button__label">Назад</span>
-              <span class="responsive-action-button__icon" aria-hidden="true">🔄</span>
-            </button>
-            <button id="first-roll-show-rules" class="secondary-button responsive-action-button" type="button" aria-label="Правила">
-              <span class="responsive-action-button__label">Правила</span>
-              <span class="responsive-action-button__icon" aria-hidden="true">ℹ️</span>
-            </button>
-          </nav>
-          <h1 id="first-roll-title">Кто ходит первым?</h1>
-          <p id="first-roll-status" class="flow-intro" aria-live="polite"></p>
-          <button id="first-roll-die" class="physical-dice first-roll-die" type="button" aria-label="Бросить один кубик">
-            <span class="physical-die physical-die--not-rolled"><span class="physical-die__placeholder">–</span></span>
-          </button>
-          <ol id="first-roll-results" class="roll-results"></ol>
-        </div>
-      </section>
-
       <section id="game-screen" class="flow-screen" hidden>
         <div class="game-layout">
-        <nav class="game-actions" aria-label="Действия игры">
-          <div class="new-game-action">
-            <button id="new-game" class="secondary-button responsive-action-button" type="button" aria-label="Новая игра" aria-expanded="false" aria-controls="new-game-popup">
-              <span class="responsive-action-button__label">Новая игра</span>
-              <span class="responsive-action-button__icon" aria-hidden="true">🔄</span>
-            </button>
-            <div id="new-game-popup" class="confirmation-popup" role="alertdialog" aria-labelledby="new-game-popup-title" hidden>
-              <p id="new-game-popup-title">Сбросить текущую партию?</p>
-              <div class="confirmation-popup__actions">
-                <button id="cancel-new-game" class="popup-button popup-button--secondary" type="button">Отмена</button>
-                <button id="confirm-new-game" class="popup-button popup-button--danger" type="button">Сбросить</button>
-              </div>
-            </div>
-          </div>
-          <button id="show-rules" class="secondary-button responsive-action-button" type="button" aria-label="Правила">
-            <span class="responsive-action-button__label">Правила</span>
-            <span class="responsive-action-button__icon" aria-hidden="true">ℹ️</span>
-          </button>
-        </nav>
         <section class="dice-panel dice-panel--top" data-dice-position="top" aria-label="Верхние кубики">
           <button class="physical-dice" type="button" aria-label="Бросить верхние кубики"></button>
           <p class="turn-status" aria-live="polite"></p>
@@ -118,6 +99,33 @@
         </div>
         </details>
       </section>
+
+      <dialog id="game-menu" class="game-menu" aria-labelledby="game-menu-title">
+        <section class="game-menu__panel">
+          <h2 id="game-menu-title" class="visually-hidden">Меню игры</h2>
+          <button id="close-game-menu" class="dialog-close" type="button" aria-label="Закрыть меню">×</button>
+          <div id="game-menu-actions" class="game-menu__actions">
+            <button id="show-rules" class="menu-action" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5"></circle>
+                <path d="M12 10.5v5.5M12 7.5h.01"></path>
+              </svg>
+              <span>Правила</span>
+            </button>
+            <button id="new-game" class="menu-action" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 8h10a4 4 0 0 1 0 8H9"></path>
+                <path d="m8 5-3 3 3 3"></path>
+              </svg>
+              <span>Новая игра</span>
+            </button>
+          </div>
+          <div id="new-game-confirmation" class="new-game-confirmation" hidden>
+            <p id="new-game-popup-title">Сбросить текущую партию?</p>
+            <button id="confirm-new-game" class="danger-button" type="button">Сбросить</button>
+          </div>
+        </section>
+      </dialog>
 
       <dialog id="rules-dialog" class="rules-dialog" aria-labelledby="rules-slide-title">
         <section class="rules-dialog__panel">
