@@ -19,7 +19,7 @@ function actionFor(state, playerId, dieValue, pieceId) {
   return getValidActions(state, playerId, dieValue).find((action) => action.pieceId === pieceId);
 }
 
-test("an outside piece can enter its start only with a six", () => {
+test("[critical] an outside piece can enter its start only with a six", () => {
   const state = createState();
 
   assert.equal(getValidActions(state, "A", 5).length, 0);
@@ -33,7 +33,7 @@ test("an outside piece can enter its start only with a six", () => {
   });
 });
 
-test("a captured piece needs one six to leave the sun and another to enter the board", () => {
+test("[critical] a captured piece needs one six to leave the sun and another to enter the board", () => {
   const state = createState({
     "A-P1": { location: "sun", cellId: null, laps: 0 },
   });
@@ -63,7 +63,7 @@ test("main-route movement crosses side boundaries using board data", () => {
   assert.deepEqual(action.path, ["B-0", "B-1"]);
 });
 
-test("a piece cannot jump over friendly or enemy pieces", () => {
+test("[critical] a piece cannot jump over friendly or enemy pieces", () => {
   const friendlyBlock = createState({
     "A-P1": { location: "board", cellId: "A-5" },
     "A-P2": { location: "board", cellId: "A-7" },
@@ -86,7 +86,7 @@ test("a piece cannot land on a friendly piece", () => {
   assert.equal(actionFor(state, "A", 3, "A-P1"), undefined);
 });
 
-test("landing exactly on an enemy captures it to the sun", () => {
+test("[critical] landing exactly on an enemy captures it to the sun", () => {
   const state = createState({
     "A-P1": { location: "board", cellId: "A-5" },
     "B-P1": { location: "board", cellId: "A-8" },
@@ -126,7 +126,7 @@ test("unsupported special-location pieces are ignored and landing on the swamp e
   assert.equal(actionFor(state, "A", 2, "A-P2").destination, "A-3-X");
 });
 
-test("applyAction rejects stale or fabricated actions", () => {
+test("[critical] applyAction rejects stale or fabricated actions", () => {
   const state = createState({ "A-P1": { location: "board", cellId: "A-5" } });
 
   assert.throws(

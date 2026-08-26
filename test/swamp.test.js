@@ -52,7 +52,7 @@ test("passing through SIDE-3 does not enter the swamp", () => {
   assert.deepEqual(position(applyAction(state, action), "A-P1"), { location: "board", cellId: "A-4" });
 });
 
-test("X, Y, and Z move only with their board-data required rolls", () => {
+test("[critical] X, Y, and Z move only with their board-data required rolls", () => {
   const cases = [
     ["A-3-X", 1, "A-3-Y"],
     ["A-3-Y", 3, "A-3-Z"],
@@ -101,7 +101,7 @@ test("a swamp move pushes one enemy piece without capture inside X/Y/Z", () => {
   assert.equal(result.events.some(({ type }) => type === "captured"), false);
 });
 
-test("a swamp move precomputes and applies a chain push of two pieces", () => {
+test("[critical] a swamp move precomputes and applies a chain push of two pieces", () => {
   const state = createState({
     "A-P1": { location: "swamp", cellId: "A-3-X" },
     "B-P1": { location: "swamp", cellId: "A-3-Y" },
@@ -171,7 +171,7 @@ test("chain push onto an enemy at SIDE-6 captures it", () => {
   assert.deepEqual(position(result, "D-P1"), { location: "sun", cellId: null });
 });
 
-test("chain push blocked by the last pushed piece's friendly exit occupant is wholly invalid", () => {
+test("[critical] chain push blocked by the last pushed piece's friendly exit occupant is wholly invalid", () => {
   const state = createState({
     "A-P1": { location: "swamp", cellId: "A-3-X" },
     "B-P1": { location: "swamp", cellId: "A-3-Y" },

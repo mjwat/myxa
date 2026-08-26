@@ -21,7 +21,7 @@ function actionFor(state, playerId, dieValue, pieceId) {
   return getValidActions(state, playerId, dieValue).find((action) => action.pieceId === pieceId);
 }
 
-test("landing on SIDE-2 teleports to SIDE-10 without consuming another die value", () => {
+test("[critical] landing on SIDE-2 teleports to SIDE-10 without consuming another die value", () => {
   const state = createState({ "A-P1": { location: "board", cellId: "A-0" } });
   const action = actionFor(state, "A", 2, "A-P1");
 
@@ -108,7 +108,7 @@ test("an enemy on the Rainbow landing endpoint is captured before teleport", () 
   assert.deepEqual(result.events.map(({ type }) => type), ["piece-moved", "captured", "teleported"]);
 });
 
-test("a friendly piece on the Rainbow destination makes the whole action invalid", () => {
+test("[critical] a friendly piece on the Rainbow destination makes the whole action invalid", () => {
   const state = createState({
     "A-P1": { location: "board", cellId: "A-0" },
     "A-P2": { location: "board", cellId: "A-10" },

@@ -31,7 +31,7 @@ test("other roll values do not produce a turn order", () => {
   assert.equal("turnOrder" in state, false);
 });
 
-test("only players tied for the maximum reroll", () => {
+test("[critical] only players tied for the maximum reroll", () => {
   const state = completeRound(createFirstPlayerRoll(["A", "B", "C", "D"]), {
     A: 6, B: 3, C: 6, D: 4,
   });

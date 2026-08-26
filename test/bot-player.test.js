@@ -50,7 +50,7 @@ test("Bot gets actions for only the active value and chooses a valid action", ()
   )));
 });
 
-test("Bot automatically rolls, plays every available value, and switches player", async () => {
+test("[critical] Bot automatically rolls, plays every available value, and switches player", async () => {
   const events = [];
   const state = await playBotTurn(createState(), {
     dice: [6, 2],

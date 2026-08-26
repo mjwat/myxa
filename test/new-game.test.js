@@ -52,7 +52,7 @@ test("games with several human players keep the bottom-first side layout", () =>
   assert.deepEqual(assignPlayerSides(configuredPlayers).map(({ side }) => side), ["C", "D", "A", "B"]);
 });
 
-test("turns continue clockwise from the first player regardless of setup order", () => {
+test("[critical] turns continue clockwise from the first player regardless of setup order", () => {
   const configuredPlayers = players(4).map((player, index) => ({
     ...player,
     type: index === 0 ? "human" : "bot",

@@ -41,7 +41,7 @@ test("setup draft restores player count and entered names", () => {
   assert.equal(loadAppState(storage).setup.players[0].name, "Маша");
 });
 
-test("an active game round-trips as serializable state", () => {
+test("[critical] an active game round-trips as serializable state", () => {
   const storage = createStorage();
   const draftPlayers = setupPlayers(2);
   const activePlayers = draftPlayers.slice(0, 2);

@@ -21,7 +21,7 @@ function actionFor(state, playerId, dieValue, pieceId) {
   return getValidActions(state, playerId, dieValue).find((action) => action.pieceId === pieceId);
 }
 
-test("a piece enters its own HOME after completing a full lap", () => {
+test("[critical] a piece enters its own HOME after completing a full lap", () => {
   const state = createState({
     "A-P1": { location: "board", cellId: "D-11", laps: 0 },
   });
@@ -191,7 +191,7 @@ test("fewer than four finished pieces do not win", () => {
   assert.equal(result.gameState.winnerId, null);
 });
 
-test("the fourth finished piece wins immediately and cancels remaining values", () => {
+test("[critical] the fourth finished piece wins immediately and cancels remaining values", () => {
   const state = createState({
     "A-P1": { location: "finished", cellId: "A-H-4", laps: 1 },
     "A-P2": { location: "finished", cellId: "A-H-3", laps: 1 },

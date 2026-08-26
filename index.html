@@ -26,11 +26,6 @@
               <path d="M12 7.25h.01"></path>
             </svg>
           </button>
-          <button id="open-game-menu" class="icon-button" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="game-menu" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 7h14M5 12h14M5 17h14"></path>
-            </svg>
-          </button>
         </div>
       </div>
     </header>
@@ -64,9 +59,21 @@
           <p class="turn-status" aria-live="polite"></p>
         </section>
         <section class="board-shell" aria-label="Игровое поле 13 на 13">
+          <button id="open-game-menu" class="board-menu-button" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="game-menu" hidden>
+            <img src="favicon.png" alt="">
+          </button>
           <div id="board-stage" class="board-stage">
             <div id="board" class="board"></div>
-            <div id="victory-overlay" class="victory-overlay" hidden role="status" aria-live="assertive"></div>
+            <div id="victory-overlay" class="victory-overlay" hidden>
+              <section class="victory-overlay__panel" role="dialog" aria-modal="true" aria-labelledby="victory-message">
+                <span class="victory-overlay__trophy" aria-hidden="true">🏆</span>
+                <p id="victory-message" class="victory-overlay__message" role="status" aria-live="assertive"></p>
+                <div class="victory-overlay__actions">
+                  <button id="victory-new-game" class="primary-button" type="button">Новая игра</button>
+                  <button id="victory-game-settings" class="secondary-button" type="button">Настройки игры</button>
+                </div>
+              </section>
+            </div>
           </div>
         </section>
 
@@ -118,6 +125,13 @@
                 <path d="m8 5-3 3 3 3"></path>
               </svg>
               <span>Новая игра</span>
+            </button>
+            <button id="game-settings" class="menu-action" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L5.1 11a7 7 0 0 0 0 2L3 14.5l2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 3.1h5l.4-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2.1-1.5a7 7 0 0 0 .1-1Z"></path>
+              </svg>
+              <span>Настройки игры</span>
             </button>
           </div>
           <div id="new-game-confirmation" class="new-game-confirmation" hidden>

@@ -246,6 +246,7 @@ const playerSettingsElement = document.querySelector("#player-settings");
 const setupErrorElement = document.querySelector("#setup-error");
 const startGameElement = document.querySelector("#start-game");
 const newGameElement = document.querySelector("#new-game");
+const gameSettingsElement = document.querySelector("#game-settings");
 const confirmNewGameElement = document.querySelector("#confirm-new-game");
 const showRulesElement = document.querySelector("#show-rules");
 const rulesDialogElement = document.querySelector("#rules-dialog");
@@ -267,6 +268,9 @@ const compactGameLayoutQuery = window.matchMedia("(max-width: 980px)");
 let physicalDiceElement = rollDiceElement;
 let turnStatusElement = document.querySelector("#turn-status");
 const victoryOverlayElement = document.querySelector("#victory-overlay");
+const victoryMessageElement = document.querySelector("#victory-message");
+const victoryNewGameElement = document.querySelector("#victory-new-game");
+const victoryGameSettingsElement = document.querySelector("#victory-game-settings");
 const debugOutputElement = document.querySelector("#debug-output");
 const debugPanelElement = document.querySelector(".rule-debug");
 debugPanelElement.hidden = displayMode !== DISPLAY_MODES.DEVELOPMENT;
@@ -299,6 +303,7 @@ let selectedBotAction = null;
 let rulesSlides = [];
 let rulesSlideIndex = 0;
 let dismissedVictoryOverlayWinnerId = null;
+let pendingResetAction = null;
 let rulesLoadPromise = null;
 let rulesReturnFocusElement = null;
 
@@ -590,7 +595,6 @@ function renderFirstPlayerRoll() {
   });
   clearDestinationHighlights();
   victoryOverlayElement.hidden = true;
-  victoryOverlayElement.replaceChildren();
 
   const activePosition = compactGameLayoutQuery.matches
     ? getDicePosition(pendingPlayers, displayPlayerId)
@@ -717,10 +721,11 @@ async function finishFirstPlayerRollHold() {
   await completeFirstPlayerRoll(playerId, finalValue, generation);
 }
 
-function beginFirstPlayerFlow() {
+function beginFirstPlayerFlow({ autoPlaySettings = new Map() } = {}) {
   pendingPlayers = getActiveSetupPlayers().map((player) => ({
     ...player,
     name: player.name.trim(),
+    autoPlay: player.type === "human" && autoPlaySettings.get(player.id) === true,
   }));
   firstPlayerRollState = createFirstPlayerRoll(
     createClockwiseTurnOrder(pendingPlayers, pendingPlayers[0].id),
@@ -731,6 +736,10 @@ function beginFirstPlayerFlow() {
   });
   isFirstRollRolling = false;
   isFirstRollHolding = false;
+  isRolling = false;
+  isHumanDiceHolding = false;
+  window.clearInterval(diceHoldTimer);
+  diceHoldTimer = null;
   flowGeneration += 1;
   showPhase("first-player-roll");
   persistCurrentState();
@@ -747,6 +756,14 @@ function returnToSetup() {
   showPhase("setup");
   persistCurrentState();
   renderSetupPlayers();
+}
+
+function restartWithCurrentSettings() {
+  const autoPlaySettings = new Map(
+    currentGameState.players.map(({ id, autoPlay }) => [id, autoPlay === true]),
+  );
+  dismissedVictoryOverlayWinnerId = null;
+  beginFirstPlayerFlow({ autoPlaySettings });
 }
 
 function piecePositionForCell(cellId) {
@@ -1092,16 +1109,8 @@ function renderDiceState(message) {
   const winner = currentGameState.players.find(({ id }) => id === currentGameState.winnerId);
   if (!winner) dismissedVictoryOverlayWinnerId = null;
   victoryOverlayElement.hidden = !winner || dismissedVictoryOverlayWinnerId === winner.id;
-  victoryOverlayElement.replaceChildren();
   if (winner) {
-    const trophy = document.createElement("span");
-    trophy.className = "victory-overlay__trophy";
-    trophy.setAttribute("aria-hidden", "true");
-    trophy.textContent = "🏆";
-
-    const message = document.createElement("span");
-    message.textContent = `Победитель: ${winner.name}`;
-    victoryOverlayElement.append(trophy, message);
+    victoryMessageElement.textContent = `Победитель: ${winner.name}`;
   }
 
   if (message) turnStatusElement.textContent = message;
@@ -1338,13 +1347,15 @@ async function activateInteractiveElement(target) {
 }
 
 boardStageElement.addEventListener("click", ({ target }) => {
-  if (!victoryOverlayElement.hidden && !target.closest("#victory-overlay")) {
-    dismissedVictoryOverlayWinnerId = currentGameState.winnerId;
-    victoryOverlayElement.hidden = true;
-    return;
-  }
   activateInteractiveElement(target);
 });
+victoryOverlayElement.addEventListener("click", (event) => {
+  if (event.target !== victoryOverlayElement) return;
+  dismissedVictoryOverlayWinnerId = currentGameState.winnerId;
+  victoryOverlayElement.hidden = true;
+});
+victoryNewGameElement.addEventListener("click", restartWithCurrentSettings);
+victoryGameSettingsElement.addEventListener("click", returnToSetup);
 boardStageElement.addEventListener("change", (event) => {
   const input = event.target.closest("[data-auto-player-id]");
   if (!input) return;
@@ -1511,6 +1522,7 @@ rulesDialogElement.addEventListener("close", () => {
 function resetGameMenuView() {
   gameMenuActionsElement.hidden = false;
   newGameConfirmationElement.hidden = true;
+  pendingResetAction = null;
 }
 
 function closeGameMenu({ restoreFocus = true } = {}) {
@@ -1536,14 +1548,20 @@ gameMenuElement.addEventListener("close", () => {
   openGameMenuElement.setAttribute("aria-expanded", "false");
   resetGameMenuView();
 });
-newGameElement.addEventListener("click", () => {
+function requestGameReset(action) {
+  pendingResetAction = action;
   gameMenuActionsElement.hidden = true;
   newGameConfirmationElement.hidden = false;
   confirmNewGameElement.focus();
-});
+}
+
+newGameElement.addEventListener("click", () => requestGameReset("restart"));
+gameSettingsElement.addEventListener("click", () => requestGameReset("settings"));
 confirmNewGameElement.addEventListener("click", () => {
+  const action = pendingResetAction;
   closeGameMenu({ restoreFocus: false });
-  returnToSetup();
+  if (action === "restart") restartWithCurrentSettings();
+  else if (action === "settings") returnToSetup();
 });
 debugScenarioElement.addEventListener("input", loadScenario);
 debugPlayerElement.addEventListener("input", () => {

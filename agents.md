@@ -75,8 +75,18 @@ Keep saved-state format versionable.
 
 ## Testing
 
-Run the test suite with `npm test` after changing rules, game state,
-persistence or shared UI behavior.
+`npm test` runs the critical suite. Keep it at approximately 20 tests and mark
+its members with a `[critical]` name prefix. Tests without that prefix are
+non-critical and run with `npm run test:all`.
+
+Every new test must be justified by a concrete regression risk or important
+behavior. When adding a test, decide whether it replaces or joins the critical
+set; if it joins, rebalance the set so the number of active critical tests stays
+close to 20.
+
+Run `npm test` after changing rules, game state, persistence or shared UI
+behavior. Run `npm run test:all` when the affected area has non-critical tests
+or before broad releases.
 
 ## Scope
 

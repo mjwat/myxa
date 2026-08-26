@@ -42,7 +42,7 @@ test("a new turn starts waiting for a roll", () => {
   assert.deepEqual(turn.valueStates, []);
 });
 
-test("normal rolls preserve the dice and resolve the larger value first", () => {
+test("[critical] normal rolls preserve the dice and resolve the larger value first", () => {
   for (const dice of [[5, 3], [3, 5]]) {
     const state = startTurn(createState({ "A-P1": { location: "board", cellId: "A-4" } }), dice);
     assert.deepEqual(state.turn.dice, dice);
@@ -159,7 +159,7 @@ test("the engine does not reorder values to make both playable", () => {
   assert.deepEqual(statuses(state), ["used", "burned"]);
 });
 
-test("a double creates and finishes four actions with the same value", () => {
+test("[critical] a double creates and finishes four actions with the same value", () => {
   let state = startTurn(createState({ "A-P1": { location: "board", cellId: "A-4" } }), [3, 3]);
   assert.deepEqual(state.turn.sequence, [3, 3, 3, 3]);
 
@@ -206,7 +206,7 @@ test("six exposes move, enter-board, and release-from-sun as alternatives", () =
   ]));
 });
 
-test("a sun piece is not offered when another six action lets the player use both dice", () => {
+test("[critical] a sun piece is not offered when another six action lets the player use both dice", () => {
   const state = startTurn(createState({
     "A-P1": { location: "sun", cellId: null },
     "A-P3": { location: "finished", cellId: "A-H-3", laps: 1 },
@@ -278,7 +278,7 @@ test("an unfinished turn cannot be replaced by another roll", () => {
   assert.throws(() => startTurn(state, [6, 6]), /current turn/);
 });
 
-test("a finished turn advances through the declared turnOrder and resets turn state", () => {
+test("[critical] a finished turn advances through the declared turnOrder and resets turn state", () => {
   const state = createState();
   state.turnOrder = ["A", "C", "B", "D"];
   const finishedState = startTurn(state, [5, 3]);
