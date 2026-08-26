@@ -269,6 +269,7 @@ let physicalDiceElement = rollDiceElement;
 let turnStatusElement = document.querySelector("#turn-status");
 const victoryOverlayElement = document.querySelector("#victory-overlay");
 const victoryMessageElement = document.querySelector("#victory-message");
+const closeVictoryElement = document.querySelector("#close-victory");
 const victoryNewGameElement = document.querySelector("#victory-new-game");
 const victoryGameSettingsElement = document.querySelector("#victory-game-settings");
 const debugOutputElement = document.querySelector("#debug-output");
@@ -1346,14 +1347,18 @@ async function activateInteractiveElement(target) {
   await performActionSequence(sequence);
 }
 
+function closeVictoryOverlay() {
+  dismissedVictoryOverlayWinnerId = currentGameState.winnerId;
+  victoryOverlayElement.hidden = true;
+}
+
 boardStageElement.addEventListener("click", ({ target }) => {
   activateInteractiveElement(target);
 });
 victoryOverlayElement.addEventListener("click", (event) => {
-  if (event.target !== victoryOverlayElement) return;
-  dismissedVictoryOverlayWinnerId = currentGameState.winnerId;
-  victoryOverlayElement.hidden = true;
+  if (event.target === victoryOverlayElement) closeVictoryOverlay();
 });
+closeVictoryElement.addEventListener("click", closeVictoryOverlay);
 victoryNewGameElement.addEventListener("click", restartWithCurrentSettings);
 victoryGameSettingsElement.addEventListener("click", returnToSetup);
 boardStageElement.addEventListener("change", (event) => {

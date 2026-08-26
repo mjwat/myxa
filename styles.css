@@ -750,7 +750,7 @@ p {
   position: absolute;
   z-index: 20;
   top: 0;
-  left: 0.5rem;
+  right: 0.5rem;
   display: grid;
   width: clamp(2.25rem, 6.6667%, 3rem);
   aspect-ratio: 1;
@@ -778,7 +778,7 @@ p {
 @media (min-width: 981px) {
   .board-menu-button {
     top: 0.75rem;
-    left: 0.75rem;
+    right: 0.75rem;
   }
 }
 
@@ -1441,6 +1441,7 @@ p {
 }
 
 .victory-overlay__panel {
+  position: relative;
   display: grid;
   width: 100%;
   max-width: 26rem;
@@ -1454,6 +1455,13 @@ p {
   font-size: clamp(1.15rem, 4vw, 2rem);
   font-weight: 900;
   text-align: center;
+}
+
+.victory-overlay__close {
+  top: 0.55rem;
+  right: 0.55rem;
+  border-color: transparent;
+  background: transparent;
 }
 
 .victory-overlay:not([hidden]) {
