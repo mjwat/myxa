@@ -87,3 +87,15 @@ test("double labels continue from actions already made with the selected piece",
     label: "×3",
   });
 });
+
+test("a Bot double action shows its current die value without predicting later choices", () => {
+  assert.deepEqual(getSequenceBadge(
+    [{ dieValue: 4 }],
+    [4, 4],
+    0,
+    { showSingleDoubleValue: true },
+  ), {
+    type: "dice",
+    values: [4],
+  });
+});

@@ -4,11 +4,13 @@
 
 Before making changes, read the relevant project documentation:
 
--   `readme.md` --- product scope, UX and high-level architecture.
+-   `readme.md` --- product scope and high-level architecture.
+-   `ui_ux.md` --- screens, responsive layout and interaction behavior.
 -   `game_rules.md` --- player-facing game rules and source of truth for
     mechanics.
 -   `game_model.md` --- technical board model, game entities and
     rule-engine conventions.
+-   `auto_play.md` --- Human auto-play policy and automation boundaries.
 
 Do not duplicate these specifications in code or in this file.
 
@@ -52,6 +54,8 @@ When fixing a rule bug, add or update a regression test when practical.
 Prioritize testing rule logic and edge cases over visual implementation.
 
 ## UI
+
+`ui_ux.md` is the source of truth for screens, layout and interaction behavior.
 
 The board must work on mobile and desktop.
 

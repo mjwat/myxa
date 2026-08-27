@@ -595,7 +595,7 @@ function renderFirstPlayerRoll() {
     showAutoControls: false,
   });
   clearDestinationHighlights();
-  victoryOverlayElement.hidden = true;
+  closeVictoryOverlay({ dismiss: false });
 
   const activePosition = compactGameLayoutQuery.matches
     ? getDicePosition(pendingPlayers, displayPlayerId)
@@ -608,6 +608,7 @@ function renderFirstPlayerRoll() {
     const isActive = panel === activePanel;
     const diceButton = panel.querySelector(".physical-dice");
     const panelStatus = panel.querySelector(".turn-status");
+    const showCaption = isActive && (currentPlayer.type === "human" || state.status === "complete");
     panel.classList.remove("dice-panel--first-roll", "dice-panel--first-roll-inactive");
     panel.classList.add("dice-panel--first-roll");
     panel.classList.toggle("dice-panel--first-roll-inactive", !isActive);
@@ -630,10 +631,10 @@ function renderFirstPlayerRoll() {
       renderDieFace(die, currentValue);
       diceButton.append(die);
     }
-    panelStatus.textContent = isActive ? statusMessage : "";
-    panelStatus.classList.toggle("turn-status--hidden", !isActive);
-    panelStatus.setAttribute("aria-hidden", String(!isActive));
-    panelStatus.setAttribute("aria-live", isActive ? "polite" : "off");
+    panelStatus.textContent = showCaption ? statusMessage : "";
+    panelStatus.classList.toggle("turn-status--hidden", !showCaption);
+    panelStatus.setAttribute("aria-hidden", String(!showCaption));
+    panelStatus.setAttribute("aria-live", showCaption ? "polite" : "off");
   });
 
   physicalDiceElement = activePanel.querySelector(".physical-dice");
@@ -924,11 +925,16 @@ async function animateLinearEvent(event, animationOptions) {
   if (!pieceElement) return;
 
   const path = event.type === "entered-swamp" ? [event.to] : event.path;
-  for (const [stepIndex, cellId] of path.entries()) {
-    const stepAnimationOptions = animationOptions ?? {
-      duration: getMovementStepDuration(stepIndex, path.length),
-    };
-    await animatePieceTo(pieceElement, cellId, stepAnimationOptions);
+  pieceElement.classList.add("piece--moving");
+  try {
+    for (const [stepIndex, cellId] of path.entries()) {
+      const stepAnimationOptions = animationOptions ?? {
+        duration: getMovementStepDuration(stepIndex, path.length),
+      };
+      await animatePieceTo(pieceElement, cellId, stepAnimationOptions);
+    }
+  } finally {
+    pieceElement.classList.remove("piece--moving");
   }
 }
 
@@ -1081,8 +1087,9 @@ function renderDiceState(message) {
       : [0, 1].map((id) => ({ id, value: null, status: "not-rolled", statusLabel: "ожидает" }));
     panel.classList.remove("dice-panel--first-roll", "dice-panel--first-roll-inactive");
     const isHumanDicePanel = humanDicePositions.has(panel.dataset.dicePosition);
-    const showCaption = !compactGameLayoutQuery.matches
-      || (isHumanDicePanel && (!isActive || currentPlayer?.type === "human"));
+    const showCaption = compactGameLayoutQuery.matches
+      ? isHumanDicePanel && (!isActive || currentPlayer?.type === "human")
+      : currentPlayer?.type === "human";
 
     panel.classList.toggle("dice-panel--current", isActive);
     panel.classList.toggle("dice-panel--rolling", isActive && isRolling);
@@ -1109,9 +1116,17 @@ function renderDiceState(message) {
 
   const winner = currentGameState.players.find(({ id }) => id === currentGameState.winnerId);
   if (!winner) dismissedVictoryOverlayWinnerId = null;
-  victoryOverlayElement.hidden = !winner || dismissedVictoryOverlayWinnerId === winner.id;
   if (winner) {
     victoryMessageElement.textContent = `Победитель: ${winner.name}`;
+  }
+  const shouldShowVictory = winner && dismissedVictoryOverlayWinnerId !== winner.id;
+  if (shouldShowVictory && !victoryOverlayElement.open) {
+    closeGameMenu({ restoreFocus: false });
+    if (rulesDialogElement.open) rulesDialogElement.close();
+    victoryOverlayElement.showModal();
+    closeVictoryElement.focus();
+  } else if (!shouldShowVictory && victoryOverlayElement.open) {
+    closeVictoryOverlay({ dismiss: false });
   }
 
   if (message) turnStatusElement.textContent = message;
@@ -1159,6 +1174,7 @@ function renderInteraction(message) {
       sequence,
       currentGameState.turn?.dice,
       selectedPieceActionCount,
+      { showSingleDoubleValue: Boolean(selectedBotAction) },
     );
     getSequenceSelectionCells(sequence).forEach((selectionCell) => {
       const cell = boardElement.querySelector(`[data-cell-id="${selectionCell}"]`);
@@ -1347,9 +1363,11 @@ async function activateInteractiveElement(target) {
   await performActionSequence(sequence);
 }
 
-function closeVictoryOverlay() {
-  dismissedVictoryOverlayWinnerId = currentGameState.winnerId;
-  victoryOverlayElement.hidden = true;
+function closeVictoryOverlay({ dismiss = true } = {}) {
+  if (dismiss && currentGameState?.winnerId) {
+    dismissedVictoryOverlayWinnerId = currentGameState.winnerId;
+  }
+  if (victoryOverlayElement.open) victoryOverlayElement.close();
 }
 
 boardStageElement.addEventListener("click", ({ target }) => {
@@ -1357,6 +1375,15 @@ boardStageElement.addEventListener("click", ({ target }) => {
 });
 victoryOverlayElement.addEventListener("click", (event) => {
   if (event.target === victoryOverlayElement) closeVictoryOverlay();
+});
+victoryOverlayElement.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeVictoryOverlay();
+});
+victoryOverlayElement.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeVictoryOverlay();
 });
 closeVictoryElement.addEventListener("click", closeVictoryOverlay);
 victoryNewGameElement.addEventListener("click", restartWithCurrentSettings);
@@ -1538,6 +1565,7 @@ function closeGameMenu({ restoreFocus = true } = {}) {
 }
 
 function openGameMenu() {
+  if (victoryOverlayElement.open) return;
   resetGameMenuView();
   gameMenuElement.showModal();
   openGameMenuElement.setAttribute("aria-expanded", "true");
@@ -1553,7 +1581,17 @@ gameMenuElement.addEventListener("close", () => {
   openGameMenuElement.setAttribute("aria-expanded", "false");
   resetGameMenuView();
 });
+function executeGameReset(action) {
+  if (action === "restart") restartWithCurrentSettings();
+  else if (action === "settings") returnToSetup();
+}
+
 function requestGameReset(action) {
+  if (currentGameState.status === "finished") {
+    closeGameMenu({ restoreFocus: false });
+    executeGameReset(action);
+    return;
+  }
   pendingResetAction = action;
   gameMenuActionsElement.hidden = true;
   newGameConfirmationElement.hidden = false;
@@ -1565,8 +1603,7 @@ gameSettingsElement.addEventListener("click", () => requestGameReset("settings")
 confirmNewGameElement.addEventListener("click", () => {
   const action = pendingResetAction;
   closeGameMenu({ restoreFocus: false });
-  if (action === "restart") restartWithCurrentSettings();
-  else if (action === "settings") returnToSetup();
+  executeGameReset(action);
 });
 debugScenarioElement.addEventListener("input", loadScenario);
 debugPlayerElement.addEventListener("input", () => {

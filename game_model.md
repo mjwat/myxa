@@ -3,7 +3,9 @@
 Technical representation of the board and game mechanics.
 
 Player-facing rules are defined in `game_rules.md`.\
-Product scope and UX are defined in `readme.md`.
+Product scope and high-level architecture are defined in `readme.md`.\
+Screens and interaction behavior are defined in `ui_ux.md`.\
+Human auto-play policy is defined in `auto_play.md`.
 
 ## Board
 
@@ -15,9 +17,15 @@ The board is a fixed 13 × 13 grid with four symmetric sides:
 -   `D`
 
 The rendered sides are `A` at the top, `B` at the right, `C` at the bottom,
-and `D` at the left. Setup assigns player 1 to `C` and continues clockwise
-from there. The side layouts for 2--4 players are respectively `C, A`,
-`C, D, A`, and `C, D, A, B`.
+and `D` at the left.
+
+Setup first chooses the anchor player for side `C`. If exactly one player is
+Human, that player is the anchor; otherwise player 1 is the anchor. The
+remaining players keep their setup order and are assigned as follows:
+
+-   2 players: `C, A`;
+-   3 players: `C, D, A`;
+-   4 players: `C, D, A, B`.
 
 Technical cell IDs are internal and are never shown to players.
 
@@ -178,11 +186,11 @@ Example:
 human | bot
 ```
 
-`autoPlay` is a persisted Human-player preference. It lets the UI roll and
-apply an action only when the turn engine exposes exactly one valid action;
-it does not change or duplicate game rules.
+`autoPlay` is a persisted Human-player preference. It does not change game
+rules. Its behavior is defined in `auto_play.md`.
 
-Color is visual only. Side determines the player's start and HOME.
+Color does not determine side. It controls the visual color of the player's
+pieces and assigned side. Side determines the player's start and HOME.
 
 ## Game state
 
